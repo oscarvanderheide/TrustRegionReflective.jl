@@ -1,0 +1,20 @@
+name = "TrustRegionReflective"
+uuid = "b2fb89f2-9639-4e52-b458-b5e2ad6f229e"
+authors = ["oscar <oscarvanderheide@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
+
+[compat]
+CUDA = "5.7.3"
+LinearAlgebra = "1.11.0"
+TimerOutputs = "0.5.28"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
