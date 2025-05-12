@@ -94,10 +94,10 @@ function trust_region_reflective(
             # Compute actual reduction and modification based on the scaling
             actual_reduction = f - f_new
 
-
-
+            # Calculate ratio of actual to predicted reduction
             ratio = _calculate_ratio(actual_reduction, g, H, s, ŝ, C, modfified_reduction_for_ratio, to)
 
+            # Determine whether to accept the step
             if (actual_reduction > 0 && ratio > 0.1) || Δ < Δlimit
                 @info "    Step accepted"
                 step_accepted = true
