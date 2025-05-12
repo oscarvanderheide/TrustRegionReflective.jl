@@ -86,20 +86,19 @@ function trust_region_reflective(
 
             @timeit to "Choose step" step, step_hat, step_value = chooseStep(x, Ĥ, ĝ, s, ŝ, D, Δ, θ, LB, UB)
             @timeit to "x_new" x_new = x + step
+
             # Compute new objective
             @info "    Calling f,r = objective(x_new,'fr')"
             @timeit to "Objective (fr)" f_new, r_new = objective(x_new, "fr")
-            # Compute reduction
-            actualReduction = -(f_new - f)
-            @timeit to "Predict reduction" predictedReduction = -((g' * s) + (1 // 2) * s' * (H * s))
-            # predictedReduction2  = -( (ĝ' * ŝ) + (1//2) * ŝ' * Ĥ(ŝ));
-            @timeit to "Modify reduction" modifiedReduction = -(f_new - f + (1 // 2) * ŝ' * (C .* ŝ))
-            ratio = modifiedReduction / predictedReduction
+            
+            # Compute actual reduction and modification based on the scaling
+            actual_reduction = f - f_new
 
-            @info "   reduction: $(actualReduction)"
-            @info "   ratio: $(ratio)"
 
-            if (actualReduction > 0 && ratio > 0.1) || Δ < Δlimit
+
+            ratio = _calculate_ratio(actual_reduction, g, H, s, ŝ, C, modfified_reduction_for_ratio, to)
+
+            if (actual_reduction > 0 && ratio > 0.1) || Δ < Δlimit
                 @info "    Step accepted"
                 step_accepted = true
 
@@ -118,7 +117,7 @@ function trust_region_reflective(
 
                 perform_steihaug = true
             else
-                @info "    Find a smaller step (reduction: $(actualReduction)"
+                @info "    Find a smaller step (reduction: $(actual_reduction)"
 
                 # sometimes this part keeps on iterating forever, need add
                 # a counter and have some maximum nr of tries
@@ -158,6 +157,7 @@ function trust_region_reflective(
     return state.x[:, end]
     # return state
 end
+
 
 
 
@@ -232,16 +232,16 @@ end
 #             @info "    Calling f,r = objective(x,0)"
 #             f_new, r_new = objective(x_new, 0)
 #             # Compute reduction
-#             actualReduction = -(f_new - f)
+#             actual_reduction = -(f_new - f)
 #             predictedReduction = -((g' * s) + 0.5 * s' * (H * s))
 #             # predictedReduction2  = -( (ĝ' * ŝ) + 0.5 * ŝ' * Ĥ(ŝ));
 #             modifiedReduction = -(f_new - f + 0.5 * ŝ' * (C .* ŝ))
 #             ratio = modifiedReduction / predictedReduction
 
-#             @info "   reduction: $(actualReduction)"
+#             @info "   reduction: $(actual_reduction)"
 #             @info "   ratio: $(ratio)"
 
-#             if (actualReduction > 0 && ratio > 0.1) || Δ < Δlimit
+#             if (actual_reduction > 0 && ratio > 0.1) || Δ < Δlimit
 #                 @info "    Step accepted"
 #                 step_accepted = true
 
@@ -258,7 +258,7 @@ end
 #                 state.t = hcat(state.t, t)
 
 #             else
-#                 @info "    Find a smaller step (reduction: $(actualReduction)"
+#                 @info "    Find a smaller step (reduction: $(actual_reduction)"
 #                 Δ = 0.5 * Δ
 #                 @info "   Trust radius reduced to: $(Δ)"
 #             end

@@ -538,3 +538,37 @@ function chooseStep(
     return step, step_hat, step_value
 
 end
+
+"""
+    function _calculate_ratio(actual_reduction, g, H, s, ŝ, C, modfified_reduction_for_ratio, to)
+
+Calculate the ratio of actual to predicted reduction in the cost function.
+The ratio is calculated as the actual reduction divided by the predicted reduction. The predicted reduction is computed using the quadratic approximation of the cost function.
+The actual reduction is modified by subtracting the quadratic term of the predicted reduction if `modfified_reduction_for_ratio` is true.
+
+# Arguments
+- `actual_reduction::T`: The actual reduction in the cost function.
+- `g::AbstractVector{T}`: The gradient vector.
+- `H::Function`: The Hessian operator.
+- `s::AbstractVector{T}`: The step vector.
+- `ŝ::AbstractVector{T}`: The scaled step vector.
+- `C::AbstractVector{T}`: The scaling vector.
+- `modfified_reduction_for_ratio::Bool`: A flag indicating whether to modify the actual reduction for the ratio calculation.
+- `to::TimerOutputs.TimerOutput`: The timer output object for logging.
+
+# Returns
+`ratio::T`: The ratio of actual to predicted reduction.
+"""
+function _calculate_ratio(actual_reduction, g, H, s, ŝ, C, modfified_reduction_for_ratio, to)
+
+    @timeit to "Predict reduction" predicted_reduction = -((g' * s) + (1 // 2) * s' * (H * s))
+
+    if modfified_reduction_for_ratio
+        @timeit to "Modify reduction" modified_reduction = actual_reduction - ((1 // 2) * ŝ' * (C .* ŝ))
+        ratio = modified_reduction / predicted_reduction
+    else
+        ratio = actual_reduction / predicted_reduction
+    end
+
+    return ratio
+end
