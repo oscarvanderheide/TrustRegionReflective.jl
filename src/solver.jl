@@ -1,26 +1,13 @@
-"""
-    trf(objective, x0, LB, UB, options::TRFOptions, callback)
-
-The `trf` function implements the Trust Region Reflective algorithm for solving optimization problems.
-
-The algorithm iteratively updates the solution `x` by computing potential steps using the Steihaug method and selecting the best step that satisfies the trust region constraint. It also adjusts the trust radius based on the ratio of the actual reduction in the objective function to the predicted reduction.
-
-The algorithm continues until either the maximum number of iterations is reached or convergence is achieved.
-
-# Arguments
-- `objective`: A function that computes the objective function value, residuals, gradient, and Hessian matrix at a given point `x`.
-- `x0`: The initial guess for the optimization problem.
-- `LB`: The lower bounds for the variables.
-- `UB`: The upper bounds for the variables.
-- `options::TRFOptions`: An object containing various options for the algorithm.
-- `callback`: A function that is called at each iteration of the algorithm to plot, save or whatever.
-
-# Returns
-The final solution `x` that minimizes the objective function.
-
-# TODO: Add reference
-"""
-function trf(objective, x0, LB, UB, options::TRFOptions, callback, to)
+function trust_region_reflective(
+    objective::AbstractFunction, 
+    x0::AbstractVector{T}, 
+    LB::AbstractVector{T}, 
+    UB::AbstractVector{T}, 
+    options::TRFOptions, 
+    callback::AbstractFunction, 
+    to::TimerOutputs.TimerOutput,
+    modfified_reduction_for_ratio::Bool = false
+    ) where T<:Real
 
     # Load the initial guess
     x = x0
