@@ -1,5 +1,3 @@
-using Revise
-
 using TrustRegionReflective
 using Test
 using LinearAlgebra
