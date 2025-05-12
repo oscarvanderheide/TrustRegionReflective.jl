@@ -48,21 +48,21 @@ Represents the state of the optimization algorithm at a given iteration.
 
 # Fields
 - `x`: History of parameter vectors (stored as columns in a matrix).
-- `f`: History of objective function values (stored as a 1xN matrix).
+- `f`: History of objective function values (stored as a vector).
 - `r`: History of residual vectors (stored as columns in a matrix).
-- `t`: History of elapsed times (stored as a 1xN matrix).
+- `t`: History of elapsed times (stored as a vector).
 """
-struct SolverState
-    x::AbstractMatrix
-    f::AbstractMatrix
-    r::AbstractMatrix
-    t::AbstractMatrix{Float64} # Assuming t is always Float64 based
+mutable struct SolverState{T<:Real}
+    x::AbstractMatrix{T}
+    f::AbstractVector{T}
+    r::AbstractMatrix{T}
+    t::AbstractVector{T}
 end
 
 include("utils.jl")
 include("solver.jl")
 include("steihaug.jl")
 
-export trf, TRFOptions
+export trust_region_reflective, TRFOptions
 
 end # module
