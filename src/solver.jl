@@ -14,12 +14,15 @@ function trust_region_reflective(
     @info "    Calling f,r,g,H = objective(x,'frgH')"
     @timeit to "frgH" f, r, g, H = objective(x, "frgH")
 
-    # # Distance to boundary
-    # v, dv = coleman_li_scaling_factors(x, g, LB, UB);
-    # # Initial trust radius
-    # Δ = 0.1 * norm( x ./ (sqrt.(v) ) );o
-    @info "Setting initial trust radius"
-    Δ = options.init_scale_radius * norm(x) |> eltype(x)
+    # Set initial trust radius Δ
+    Δ = norm(x)
+    if Δ == zero(T)
+        # When x0 is all zeros, use a default value based on problem dimensions
+        Δ = one(T) * sqrt(length(x))
+    end
+    
+    # Set initial trust radius with the guaranteed non-zero norm
+    Δ = options.init_scale_radius * Δ |> eltype(x)
     Δlimit = Δ * 1E-10 |> eltype(x)
 
     iter = 1
