@@ -1,23 +1,25 @@
 """
-    all_within_bounds(x, LB, UB)
+    all_within_bounds(x, LB, UB, tol=0.0)
 
-Check if all elements of `x` are within the corresponding lower bounds `LB` and upper bounds `UB`.
+Check if all elements of `x` are within the corresponding lower bounds `LB` and upper bounds `UB`, with a numerical tolerance `tol`.
 
 # Arguments
 - `x::AbstractVector{T}`: The vector to be checked.
 - `LB::AbstractVector{T}`: The lower bounds.
 - `UB::AbstractVector{T}`: The upper bounds.
+- `tol::Real`: Numerical tolerance for boundary checks.
 
 # Returns
 - `true` if all elements of `x` are within the bounds, `false` otherwise.
 """
-function all_within_bounds(x::T, LB::T, UB::T) where {T<:AbstractVector{<:Real}}
+function all_within_bounds(x::T, LB::T, UB::T, tol=0.0) where {T<:AbstractVector{<:Real}}
 
     if length(x) != length(LB) || length(x) != length(UB)
         error("    all_within_bounds: Lengths of x, LB, and UB do not match")
     end
 
-    return all((x .>= LB) .& (x .<= UB))
+    # Check with tolerance
+    return all((x .>= LB .- tol) .& (x .<= UB .+ tol))
 end
 
 """
@@ -35,9 +37,34 @@ Returns a tuple `(stepsize, boundary_hit)`:
 """
 function stepsize_to_bound_feasible_region(x::T, s::T, LB::T, UB::T) where {T<:AbstractVector{<:Real}}
 
-    # Check that initially x is within the bounds
-    if !all_within_bounds(x, LB, UB)
-        error("    Somehow x is not within the bounds")
+    # Use a small tolerance for numerical stability
+    eps_tol = sqrt(eps(eltype(x)))
+    
+    # Check that initially x is within the bounds (with tolerance)
+    if !all_within_bounds(x, LB, UB, eps_tol)
+        # Try to snap x to bounds if it's very close
+        x_fixed = copy(x)
+        for i in eachindex(x)
+            if x[i] < LB[i] && x[i] > LB[i] - eps_tol
+                x_fixed[i] = LB[i]  # Snap to lower bound
+            elseif x[i] > UB[i] && x[i] < UB[i] + eps_tol
+                x_fixed[i] = UB[i]  # Snap to upper bound
+            end
+        end
+        
+        # Check if snapping fixed the issue
+        if !all_within_bounds(x_fixed, LB, UB)
+            error("    Somehow x is not within the bounds")
+        end
+        
+        # Use the fixed point instead
+        x = x_fixed
+    end
+
+    # Special case: if s is all zeros, return Inf (no movement needed to reach boundary)
+    if all(s .== 0)
+        boundary_hit = falses(size(s))
+        return convert(eltype(x), Inf), boundary_hit
     end
 
     # Identify non-zero elements in s

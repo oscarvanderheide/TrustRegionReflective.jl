@@ -45,6 +45,27 @@ function trust_region_reflective(
 
         @info "    f: $(f)"
         @info "    Δ: $(Δ)"
+        
+        # Check for convergence based on gradient norm and function value
+        g_norm = norm(g)
+        tol = options.tol_steihaug
+        
+        # For least squares problems, check if we're close enough to the minimum
+        if (g_norm < tol) || (iter > 1 && abs(state.f[end-1] - f) < tol * max(1.0, abs(f)))
+            @info "Convergence achieved: gradient norm $(g_norm) or function change below tolerance"
+            converged = true
+            break
+        end
+
+        # Ensure x is within bounds (with a small numerical tolerance)
+        eps_tol = sqrt(eps(T))
+        for i in eachindex(x)
+            if x[i] < LB[i] && x[i] > LB[i] - eps_tol
+                x[i] = LB[i]  # Snap to lower bound
+            elseif x[i] > UB[i] && x[i] < UB[i] + eps_tol
+                x[i] = UB[i]  # Snap to upper bound
+            end
+        end
 
         @timeit to "CL scaling" v, dv = coleman_li_scaling_factors(x, g, LB, UB)
 
