@@ -3,10 +3,9 @@ function trust_region_reflective(
     x0::AbstractVector{T}, 
     LB::AbstractVector{T}, 
     UB::AbstractVector{T}, 
-    options::TRFOptions, 
-    callback::Function, 
+    callback::Function,
     to::TimerOutputs.TimerOutput,
-    modfified_reduction_for_ratio::Bool = false
+    options::TRFOptions = TRFOptions{T}(),
     ) where T<:Real
 
     # Load the initial guess
@@ -95,7 +94,7 @@ function trust_region_reflective(
             actual_reduction = f - f_new
 
             # Calculate ratio of actual to predicted reduction
-            ratio = _calculate_ratio(actual_reduction, g, H, s, ŝ, C, modfified_reduction_for_ratio, to)
+            ratio = _calculate_ratio(actual_reduction, g, H, s, ŝ, C, options.modfified_reduction_for_ratio, to)
 
             # Determine whether to accept the step
             if (actual_reduction > 0 && ratio > 0.1) || Δ < Δlimit
