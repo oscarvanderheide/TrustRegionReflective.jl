@@ -128,28 +128,26 @@ function adjust_trust_radius(
     min_ratio
 ) where {T<:Real}
 
-    @info "Norm of step: $(norm(step)), Trust Radius: $(Δ)"
+    # @info "Norm of step: $(norm(step)), Trust Radius: $(Δ)"
 
     norm_step = round(norm(step), digits=2)
 
-    if norm_step > 1.01 * round(Δ, digits=2)
+    if norm_step > T(1.01) * round(Δ, digits=2)
         error("    adjust_trust_radius: Norm of step ($norm_step) is greater than trust radius ($(round(Δ, digits=2)))")
     end
 
     if current_ratio < min_ratio # The trust region is too large. Reduce the radius.
-        @info "Trust Radius too large"
+        # @info "Trust Radius too large"
         Δ = Δ / 4
 
-    elseif (current_ratio > 1 / 2) && (norm(step) > (0.95 * Δ))
+    elseif (current_ratio > 1 / 2) && (norm(step) > (T(0.95) * Δ))
 
         # The trust region seems to be too small. Increase the radius.
-        @info "Trust Radius too small"
+        # @info "Trust Radius too small"
         Δ = 2 * Δ
 
     else # The trust region seems to be fine. Keep the radius the same.
-
-        @info "Trust Radius just fine"
-
+        # @info "Trust Radius just fine"
     end
 
     return Δ
