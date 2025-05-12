@@ -84,7 +84,7 @@ function trust_region_reflective(
             θ = max(0.995, 1 - norm(v .* g, Inf)) |> eltype(x)
             @info "Choose step"
 
-            @timeit to "Choose step" step, step_hat, step_value = chooseStep(x, Ĥ, ĝ, s, ŝ, D, Δ, θ, LB, UB)
+            @timeit to "Choose step" step, step_hat, step_value = choose_step(x, Ĥ, ĝ, s, ŝ, D, Δ, θ, LB, UB)
             @timeit to "x_new" x_new = x + step
 
             # Compute new objective
@@ -226,7 +226,7 @@ end
 #             x_new = x + s
 #             # Select best step taking into account feasible region
 #             θ = max(0.995, 1 - norm(v .* g, Inf)) |> eltype(x)
-#             step, step_hat, step_value = chooseStep(x, Ĥ, ĝ, s, ŝ, D, Δ, θ, LB, UB, logger)
+#             step, step_hat, step_value = choose_step(x, Ĥ, ĝ, s, ŝ, D, Δ, θ, LB, UB, logger)
 #             x_new = x + step
 #             # Compute new objective
 #             @info "    Calling f,r = objective(x,0)"

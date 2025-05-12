@@ -388,7 +388,7 @@ This function considers three potential steps: the Inexact Newton step, the Refl
 - `step_hat`: The chosen step in the scaled space.
 - `step_value`: The value of the quadratic approximation at the chosen step.
 """
-function chooseStep(
+function choose_step(
     x::AbstractVector{T},
     H_hat,
     g_hat::AbstractVector{T},
