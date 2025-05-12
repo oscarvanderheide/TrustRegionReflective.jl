@@ -2,6 +2,8 @@ using TrustRegionReflective
 using Test
 using LinearAlgebra
 using CUDA
+using Random
+using TimerOutputs
 
 @testset "stepsize_to_bound_feasible_region tests" begin
 
@@ -500,6 +502,7 @@ end
 
 @testset "compute_newton_step tests" begin
     using TrustRegionReflective: compute_newton_step
+
     
     # Test helper function to create a simple Hessian operator
     function make_hessian(matrix)
@@ -852,3 +855,6 @@ end
         @info "CUDA not available, skipping CuArray tests."
     end
 end
+
+# Include our convergence tests
+include("convergence_tests.jl")
