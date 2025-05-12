@@ -361,25 +361,256 @@ function stepsizes_to_bound_trust_region(x::V, s::V, trust_radius::T) where {V<:
 end
 
 """
-    choose_step(x, H_hat, g_hat, gn, gn_hat, D, trust_radius, theta, LB, UB)
+    compute_newton_step(x, gn, g_hat, H_hat, LB, UB)
 
-    (x::AbstractVector{T}, H_hat::AbstractMatrix{T}, g_hat::AbstractVector{T}, gn::AbstractVector{T}, gn_hat::AbstractVector{T}, D::AbstractVector{T}, trust_radius::T, theta::T, LB::AbstractVector{T}, UB::AbstractVector{T}) where T <: Real
-
-Choose the best step from three potential steps.
-
-This function considers three potential steps: the Inexact Newton step, the Reflected Inexact Newton step, and the Steepest Descent step. It chooses the step that minimizes the quadratic approximation and lies within the trust region and the feasible region.
+Compute and evaluate the full Inexact Newton step if feasible.
 
 # Arguments
 - `x`: The current point.
-- `H_hat`: The Hessian matrix.
-- `g_hat`: The gradient vector.
 - `gn`: The Inexact Newton direction.
-- `gn_hat`: The Inexact Newton direction in the scaled space.
+- `g_hat`: The scaled gradient vector.
+- `H_hat`: The scaled Hessian function.
+- `LB`: Lower bounds for variables.
+- `UB`: Upper bounds for variables.
+
+# Returns
+- `is_feasible`: Boolean indicating if step is feasible.
+- `step`: The Newton step if feasible, otherwise nothing.
+- `step_hat`: The scaled Newton step if feasible, otherwise nothing.
+- `step_value`: The quadratic value if feasible, otherwise nothing.
+"""
+function compute_newton_step(
+    x::AbstractVector{T},
+    gn::AbstractVector{T},
+    gn_hat::AbstractVector{T},
+    g_hat::AbstractVector{T},
+    H_hat,
+    LB::AbstractVector{T},
+    UB::AbstractVector{T}
+) where {T<:Real}
+    if all_within_bounds(x + gn, LB, UB)
+        step_value = evaluate_quadratic(H_hat, g_hat, gn_hat)
+        @debug "Full Inexact Newton step is feasible"
+        return true, gn, gn_hat, step_value
+    end
+    return false, nothing, nothing, nothing
+end
+
+"""
+    compute_reflected_step(x, gn, gn_hat, g_hat, H_hat, D, trust_radius, theta, LB, UB)
+
+Compute the Reflected Inexact Newton step.
+
+# Arguments
+- `x`: The current point.
+- `gn`: The Inexact Newton direction.
+- `gn_hat`: The scaled Inexact Newton direction.
+- `g_hat`: The scaled gradient vector.
+- `H_hat`: The scaled Hessian function.
 - `D`: The scaling vector.
 - `trust_radius`: The trust region radius.
-- `theta`: The scaling factor for the step size.
-- `LB`: The lower bounds for the variables.
-- `UB`: The upper bounds for the variables.
+- `theta`: Safety factor for feasibility (< 1).
+- `LB`: Lower bounds for variables.
+- `UB`: Upper bounds for variables.
+
+# Returns
+- `step`: The reflected step vector.
+- `step_hat`: The scaled reflected step vector.
+- `step_value`: The quadratic value at the reflected step.
+"""
+function compute_reflected_step(
+    x::AbstractVector{T},
+    gn::AbstractVector{T},
+    gn_hat::AbstractVector{T},
+    g_hat::AbstractVector{T},
+    H_hat,
+    D::AbstractVector{T},
+    trust_radius::T,
+    theta::T,
+    LB::AbstractVector{T},
+    UB::AbstractVector{T}
+) where {T<:Real}
+    # Compute step to boundary
+    p_steplength, boundary_hit = stepsize_to_bound_feasible_region(x, gn, LB, UB)
+    
+    # Get the reflection direction
+    rf_hat = copy(gn_hat)
+    rf_hat[boundary_hit] = -rf_hat[boundary_hit]
+    rf = D .* rf_hat
+    
+    # Boundary point and scaled step
+    boundary_step = p_steplength * gn
+    boundary_step_hat = p_steplength * gn_hat
+    x_boundary = x + (one(T) - T(0.01)) * boundary_step  # Slightly inside boundary
+    
+    # Compute limits for the reflection step
+    _, to_trust = stepsizes_to_bound_trust_region(boundary_step_hat, rf_hat, trust_radius)
+    to_feasible, _ = stepsize_to_bound_feasible_region(x_boundary, rf, LB, UB)
+    
+    # Find bounds on reflection step
+    rf_steplength = min(to_trust, to_feasible)
+    
+    # Default to infinite value (will not be chosen)
+    rf_value = convert(T, Inf)
+    rf_result = copy(gn)  # Default value
+    rf_hat_result = copy(gn_hat)  # Default value
+    
+    # Calculate reflection step if possible
+    if rf_steplength > zero(T)
+        # Lower bound: slightly back from boundary
+        rf_steplength_l = (one(T) - theta) * p_steplength / rf_steplength
+        
+        # Upper bound: either trust region boundary or feasible region boundary
+        if rf_steplength == to_feasible
+            rf_steplength_u = theta * to_feasible  # Stay slightly inside feasible region
+        else
+            rf_steplength_u = to_trust  # Go to trust region boundary
+        end
+        
+        # Check if reflection range is valid
+        if rf_steplength_l <= rf_steplength_u
+            # Optimize along reflection direction
+            a, b, c = build_quadratic_1d(H_hat, g_hat, rf_hat, boundary_step_hat)
+            @debug "Computing reflection step by minimizing quadratic"
+            optimal_t, rf_value = minimize_quadratic_1d(a, b, rf_steplength_l, rf_steplength_u, c)
+            
+            # Compute resulting step vectors
+            rf_hat_result = boundary_step_hat + optimal_t * rf_hat
+            rf_result = D .* rf_hat_result
+        end
+    else
+        @debug "Reflection step invalid: rf_steplength = $rf_steplength"
+    end
+    
+    return rf_result, rf_hat_result, rf_value
+end
+
+"""
+    compute_interior_newton_step(x, gn, gn_hat, g_hat, H_hat, D, theta, LB, UB)
+
+Compute a scaled Newton step that ensures strict interior feasibility.
+First scales the Newton direction to reach the boundary of the feasible region,
+then scales back by theta to stay strictly inside.
+
+# Arguments
+- `x`: Current point.
+- `gn`: Original Inexact Newton direction.
+- `gn_hat`: Scaled Inexact Newton direction.
+- `g_hat`: Scaled gradient vector.
+- `H_hat`: Scaled Hessian function.
+- `D`: Scaling vector.
+- `theta`: Safety factor for feasibility (< 1).
+- `LB`: Lower bounds for variables.
+- `UB`: Upper bounds for variables.
+
+# Returns
+- `step`: The interior Newton step.
+- `step_hat`: The scaled interior Newton step.
+- `step_value`: The quadratic value at the interior Newton step.
+"""
+function compute_interior_newton_step(
+    x::AbstractVector{T},
+    gn::AbstractVector{T},
+    gn_hat::AbstractVector{T},
+    g_hat::AbstractVector{T},
+    H_hat,
+    D::AbstractVector{T},
+    theta::T,
+    LB::AbstractVector{T},
+    UB::AbstractVector{T}
+) where {T<:Real}
+    # First find the step to the boundary, just as in the original implementation
+    p_steplength, _ = stepsize_to_bound_feasible_region(x, gn, LB, UB)
+    
+    # Scale the Newton direction to reach the boundary
+    boundary_step = p_steplength * gn
+    boundary_step_hat = p_steplength * gn_hat
+    
+    # Then apply theta to stay strictly inside the feasible region
+    step = theta * boundary_step
+    step_hat = theta * boundary_step_hat
+    
+    @debug "Computing interior Newton step value (from boundary step scaled by theta)"
+    step_value = evaluate_quadratic(H_hat, g_hat, step_hat)
+    
+    return step, step_hat, step_value
+end
+
+"""
+    compute_steepest_descent_step(x, g_hat, D, trust_radius, theta, LB, UB)
+
+Compute the steepest descent step.
+
+# Arguments
+- `x`: The current point.
+- `g_hat`: The scaled gradient vector.
+- `H_hat`: The scaled Hessian function.
+- `D`: The scaling vector.
+- `trust_radius`: The trust region radius.
+- `theta`: Safety factor for feasibility (< 1).
+- `LB`: Lower bounds for variables.
+- `UB`: Upper bounds for variables.
+
+# Returns
+- `step`: The steepest descent step.
+- `step_hat`: The scaled steepest descent step.
+- `step_value`: The quadratic value at the steepest descent step.
+"""
+function compute_steepest_descent_step(
+    x::AbstractVector{T},
+    g_hat::AbstractVector{T},
+    H_hat,
+    D::AbstractVector{T},
+    trust_radius::T,
+    theta::T, 
+    LB::AbstractVector{T},
+    UB::AbstractVector{T}
+) where {T<:Real}
+    # Steepest descent direction
+    sd_hat = -g_hat
+    sd_dir = D .* sd_hat
+    
+    # Calculate step limits
+    sd_hat_norm = norm(sd_hat)
+    to_trust = sd_hat_norm > 0 ? trust_radius / sd_hat_norm : convert(T, Inf)
+    to_feasible, _ = stepsize_to_bound_feasible_region(x, sd_dir, LB, UB)
+    
+    # Determine maximum step length
+    if to_feasible < to_trust
+        sd_steplength_max = theta * to_feasible  # Stay slightly inside feasible region
+    else
+        sd_steplength_max = to_trust  # Limited by trust region
+    end
+    
+    # Optimize along steepest descent direction
+    a, b, c = build_quadratic_1d(H_hat, g_hat, sd_hat, zero(sd_hat))
+    @debug "Computing steepest descent step by minimizing quadratic"
+    optimal_t, step_value = minimize_quadratic_1d(a, b, zero(T), sd_steplength_max, zero(T))
+    
+    # Compute resulting step vectors
+    step_hat = optimal_t * sd_hat
+    step = D .* step_hat
+    
+    return step, step_hat, step_value
+end
+
+"""
+    choose_step(x, H_hat, g_hat, gn, gn_hat, D, trust_radius, theta, LB, UB)
+
+Choose the best step from three potential steps: Inexact Newton, Reflected Inexact Newton, or Steepest Descent.
+Selects the step that minimizes the quadratic approximation while respecting trust region and feasibility constraints.
+
+# Arguments
+- `x`: The current point.
+- `H_hat`: The scaled Hessian function.
+- `g_hat`: The scaled gradient vector.
+- `gn`: The Inexact Newton direction.
+- `gn_hat`: The scaled Inexact Newton direction.
+- `D`: The scaling vector.
+- `trust_radius`: The trust region radius.
+- `theta`: Safety factor for feasibility (< 1).
+- `LB`: Lower bounds for variables.
+- `UB`: Upper bounds for variables.
 
 # Returns
 - `step`: The chosen step.
@@ -398,143 +629,46 @@ function choose_step(
     LB::AbstractVector{T},
     UB::AbstractVector{T}
 ) where {T<:Real}
-
-    # Ok so we found a step p that minimizes the quadratic approximation thingy and lies within the trust region.
-    # If x + p also lies within the feasible region then this is the step we are going to take
-
-    if all_within_bounds(x + gn, LB, UB)
-        step = gn
-        step_hat = gn_hat
-        step_value = evaluate_quadratic(H_hat, g_hat, gn_hat)
-        @info "          The Inexact Newton step was chosen"
-        return step, step_hat, step_value
+    # First check if the full Newton step is feasible
+    newton_feasible, newton_step, newton_step_hat, newton_value = 
+        compute_newton_step(x, gn, gn_hat, g_hat, H_hat, LB, UB)
+    
+    if newton_feasible
+        @debug "Choosing full Inexact Newton step"
+        return newton_step, newton_step_hat, newton_value
     end
-
-    # If x + p does not lie within the feasible region,
-    # we consider THREE different steps and take the best one
-
-    # The steps should lie inside the trust region and inside the
-    # feasible region. To check whether the steps lie inside the trust
-    # region we use the _hat variables (then we can check their
-    # 2-norms, otherwise we would have to mess with norms). To check
-    # whether steps lie in the feasible region we work in the original
-    # variables
-
-    # POTENTIAL STEP 1: Move from x in direction p until you hit the feasible region boundary.
-    #                   From there move in reflected direction rf
-    p_steplength, boundary_hit = stepsize_to_bound_feasible_region(x, gn, LB, UB)
-
-    # Reflected direction (it doesn't matter if we do the
-    # reflection on rf_hat or on rf since the scaling thing is
-    # diagonal)
-    rf_hat = gn_hat
-    rf_hat[boundary_hit] = -1 * rf_hat[boundary_hit]
-    rf = D .* rf_hat
-
-    # Add p_steplength * p to x so that we are sitting on the boundary
-    gn = p_steplength * gn
-    gn_hat = p_steplength * gn_hat
-    x_on_boundary = x + (99 // 100) * gn
-
-    # From (x + p), which lies on the boundary, we - at most - move in the direction r until
-    # we hit either the trust region boundary or the feasible region boundary
-    _, to_trust = stepsizes_to_bound_trust_region(gn_hat, rf_hat, trust_radius)
-    to_feasible, _ = stepsize_to_bound_feasible_region(x_on_boundary, rf, LB, UB)
-
-    # Find lower and upper bounds on a step size  along the reflected
-    # direction, considering the strict feasibility requirement. There is no
-    # single correct way to do that, the chosen approach seems to work best
-    # on test problems.
-    rf_steplength = min(to_trust, to_feasible)
-
-    if rf_steplength > 0
-
-        rf_steplength_l = (one(T) - theta) * p_steplength / rf_steplength # We need to be in the interior, hence the (1-theta) to move just a little bit away from the boundary
-
-        if rf_steplength == to_feasible
-            rf_steplength_u = theta * to_feasible # Multiply by theta < 1 to stay in the interior
-        elseif rf_steplength == to_trust
-            rf_steplength_u = to_trust
-        end
-
+    
+    # Compute the three candidate steps
+    @debug "Computing candidate steps"
+    
+    # 1. Reflected Newton step
+    rf_step, rf_step_hat, rf_value = compute_reflected_step(
+        x, gn, gn_hat, g_hat, H_hat, D, trust_radius, theta, LB, UB)
+    
+    # 2. Interior Newton step - Fixed: now passing all required arguments
+    gn_step, gn_step_hat, gn_value = compute_interior_newton_step(
+        x, gn, gn_hat, g_hat, H_hat, D, theta, LB, UB)
+    
+    # 3. Steepest descent step
+    sd_step, sd_step_hat, sd_value = compute_steepest_descent_step(
+        x, g_hat, H_hat, D, trust_radius, theta, LB, UB)
+    
+    # Select the step with the minimum value
+    step_values = [gn_value, rf_value, sd_value]
+    min_value, idx = findmin(step_values)
+    
+    @debug "Step values - Newton: $(gn_value), Reflected: $(rf_value), Steepest Descent: $(sd_value)"
+    
+    if idx == 1
+        @debug "Choosing scaled Inexact Newton step"
+        return gn_step, gn_step_hat, gn_value
+    elseif idx == 2
+        @debug "Choosing Reflected Inexact Newton step"
+        return rf_step, rf_step_hat, rf_value
     else
-        @info "        rf_steplength <= 0? What's going on?"
-        rf_steplength_l = zero(T)
-        rf_steplength_u = -one(T)
+        @debug "Choosing Steepest Descent step"
+        return sd_step, sd_step_hat, sd_value
     end
-
-    # Check if reflection step is available.
-    if rf_steplength_l <= rf_steplength_u
-        a, b, c = build_quadratic_1d(H_hat, g_hat, rf_hat, gn_hat)
-        @info "        minimize_quadratic_1d"
-        rf_steplength, rf_value = minimize_quadratic_1d(a, b, rf_steplength_l, rf_steplength_u, c)
-        rf_hat = rf_hat * rf_steplength
-        rf_hat = rf_hat + gn_hat
-        rf = D .* rf_hat
-    else
-        rf_value = eltype(x)(Inf) # Reflection step is bad in this case
-    end
-
-    # POTENTIAL STEP 2: x + theta * p (strictly interior point)
-
-    # gn was previously scaled such that x + gn lies on the
-    # boundary of the feasible region. For differentiability of
-    # things we prefer to remain in the interior of the feasible
-    # region. To this end, scale by some theta that is almost 1
-    gn = theta * gn
-    gn_hat = theta * gn_hat
-    @info "        evaluate_quadratic"
-    gn_value = evaluate_quadratic(H_hat, g_hat, gn_hat)
-
-    # POTENTIAL STEP 3: The steepest descent direction
-
-    sd_hat = -g_hat
-    sd = D .* sd_hat
-
-    to_trust = trust_radius / norm(sd_hat)
-    to_feasible, _ = stepsize_to_bound_feasible_region(x, sd, LB, UB)
-
-    if to_feasible < to_trust
-        sd_steplength_max = theta * to_feasible
-    else
-        sd_steplength_max = to_trust
-    end
-
-    a, b, c = build_quadratic_1d(H_hat, g_hat, sd_hat, zero(T) * g_hat)
-    @info "        minimize_quadratic_1d"
-    sd_steplength, sd_value = minimize_quadratic_1d(a, b, zero(T), sd_steplength_max, zero(T))
-    sd_hat = sd_steplength * sd_hat
-    sd = sd_steplength * sd
-
-    # Now choose the one that gives the smallest value
-
-    values = [gn_value rf_value sd_value]
-    minVal = minimum(values)
-    index = findfirst(y -> y == minVal, values)
-    index = index[1]
-    @info "        gn: $(gn_value), rf: $(rf_value), sd: $(sd_value)"
-
-    if index == 1
-        step = gn
-        step_hat = gn_hat
-        step_value = gn_value
-        @info "        The Inexact Newton step, restricted to feasible region, was chosen"
-    end
-    if index == 2
-        step = rf
-        step_hat = rf_hat
-        step_value = rf_value
-        @info "        The Reflected Inexact Newton step was chosen"
-    end
-    if index == 3
-        step = sd
-        step_hat = sd_hat
-        step_value = sd_value
-        @info "        The Steepest Descent step was chosen"
-    end
-
-    return step, step_hat, step_value
-
 end
 
 """
