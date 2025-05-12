@@ -1,10 +1,10 @@
 function trust_region_reflective(
-    objective::AbstractFunction, 
+    objective::Function, 
     x0::AbstractVector{T}, 
     LB::AbstractVector{T}, 
     UB::AbstractVector{T}, 
     options::TRFOptions, 
-    callback::AbstractFunction, 
+    callback::Function, 
     to::TimerOutputs.TimerOutput,
     modfified_reduction_for_ratio::Bool = false
     ) where T<:Real
