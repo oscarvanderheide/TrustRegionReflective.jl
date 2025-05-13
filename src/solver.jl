@@ -31,7 +31,8 @@ function trust_region_reflective(
     t = 0.0 |> eltype(x)
 
     @info "Initialize solver state"
-    @timeit to "Initialize state" state = SolverState(repeat(x,1,1), [f], repeat(r,1,1), [t])    
+
+    @timeit to "Initialize state" state = SolverState(x, f, r, t)    
 
     while ((iter < (options.max_iter_trf + 1)) && (!converged))
 

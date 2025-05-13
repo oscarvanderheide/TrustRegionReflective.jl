@@ -50,11 +50,11 @@ Represents the state of the optimization algorithm at a given iteration.
 - `r`: History of residual vectors (stored as columns in a matrix).
 - `t`: History of elapsed times (stored as a vector).
 """
-mutable struct SolverState{T<:Real}
-    x::AbstractMatrix{T}
-    f::AbstractVector{T}
-    r::AbstractMatrix{T}
-    t::AbstractVector{T}
+mutable struct SolverState
+    x
+    f
+    r
+    t
 end
 
 include("utils.jl")
