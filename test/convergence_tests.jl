@@ -214,7 +214,7 @@ using TimerOutputs
                     return f, residuals, g
                 elseif mode == "frgH"
                     g = 2.0 * residuals
-                    LinearMap(x -> 2.0 * x, 2, 2)
+                    H = LinearMap(x -> 2.0 * x, 2, 2)
                     return f, residuals, g, H
                 end
             end

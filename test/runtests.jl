@@ -4,6 +4,7 @@ using LinearAlgebra
 using CUDA
 using Random
 using TimerOutputs
+using LinearMaps
 
 @testset "stepsize_to_bound_feasible_region tests" begin
 
@@ -560,6 +561,7 @@ end
         gn_hat = CuArray([0.5, 0.5])
         g_hat = CuArray([-1.0, -1.0])
         H_hat = x -> CUDA.CUBLAS.gemm('N', 'N', CuArray(Float64[1.0 0.0; 0.0 1.0]), x)
+        H_hat = LinearMap(vec ∘ H_hat, 2,2)
         LB = CuArray([0.0, 0.0])
         UB = CuArray([2.0, 2.0])
         
@@ -624,6 +626,7 @@ end
         gn_hat = CuArray([2.0, 2.0])
         g_hat = CuArray([-1.0, -1.0])
         H_hat = x -> CUDA.CUBLAS.gemm('N', 'N', CuArray(Float64[1.0 0.0; 0.0 1.0]), x)
+        H_hat = LinearMap(vec ∘ H_hat, 2,2)
         D = CuArray([1.0, 1.0])
         theta = 0.95
         LB = CuArray([0.0, 0.0])
@@ -689,6 +692,7 @@ end
         gn_hat = CuArray([2.0, 2.0])
         g_hat = CuArray([-1.0, -1.0])
         H_hat = x -> CUDA.CUBLAS.gemm('N', 'N', CuArray(Float64[1.0 0.0; 0.0 1.0]), x)
+        H_hat = LinearMap(vec ∘ H_hat, 2,2)
         D = CuArray([1.0, 1.0])
         trust_radius = 5.0
         theta = 0.95
@@ -751,6 +755,7 @@ end
         x = CuArray([1.0, 1.0])
         g_hat = CuArray([1.0, 1.0])
         H_hat = x -> CUDA.CUBLAS.gemm('N', 'N', CuArray(Float64[1.0 0.0; 0.0 1.0]), x)
+        H_hat = LinearMap(vec ∘ H_hat, 2,2)
         D = CuArray([1.0, 1.0])
         trust_radius = 5.0
         theta = 0.95
@@ -839,6 +844,7 @@ end
         gn_hat = CuArray([0.5, 0.5])
         g_hat = CuArray([-1.0, -1.0])
         H_hat = x -> CUDA.CUBLAS.gemm('N', 'N', CuArray(Float64[1.0 0.0; 0.0 1.0]), x)
+        H_hat = LinearMap(vec ∘ H_hat, 2,2)
         D = CuArray([1.0, 1.0])
         trust_radius = 5.0
         theta = 0.95
