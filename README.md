@@ -8,6 +8,7 @@ This code used to be part of a larger codebase. It is now a separate package but
 - Implements the Trust Region Reflective algorithm.
 - Supports bound constraints on variables.
 - All the functions are - I think - type stable - which allows the solver to be used with, for example, `CuArrays` from the `CUDA.jl`.
+- Ideally this solver becomes part of, say, [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl). I don't have time myself to make this happen though.
 
 ## Acknowledgments
 This package is inspired by the following sources:
