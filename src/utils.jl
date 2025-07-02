@@ -23,6 +23,33 @@ function all_within_bounds(x::T, LB::T, UB::T, tol=0.0) where {T<:AbstractVector
 end
 
 """
+    snap_to_bounds(x, LB, UB, eps_tol)
+
+Snap elements of `x` that are slightly out of bounds (defined by `tol`) to the bounds.
+
+# Arguments
+- `x::AbstractVector{T}`: The vector to be modified.
+- `LB::AbstractVector{T}`: The lower bounds.
+- `UB::AbstractVector{T}`: The upper bounds.
+- `tol::Real`: Numerical tolerance for boundary checks.
+
+# Returns
+- `x_fixed`: A (potentially) modified version of `x`.
+"""
+function snap_to_bounds(x::AbstractVector{T}, LB, UB, tol = sqrt(eps(eltype(T)))) where {T<:Real}
+
+    x_fixed = copy(x)
+
+    lb_idx = (x .< LB) .& (x .> LB .- tol)
+    x_fixed[lb_idx] .= LB[lb_idx]
+
+    ub_idx = (x .> UB) .& (x .< UB .+ tol)
+    x_fixed[ub_idx] .= UB[ub_idx]
+
+    return x_fixed
+end
+
+"""
     stepsize_to_bound_feasible_region(x, s, LB, UB)
 
 The function computes a the smallest positive scalar stepsize, such that `x + stepsize * s` is on the bound.
@@ -37,28 +64,14 @@ Returns a tuple `(stepsize, boundary_hit)`:
 """
 function stepsize_to_bound_feasible_region(x::T, s::T, LB::T, UB::T) where {T<:AbstractVector{<:Real}}
 
-    # Use a small tolerance for numerical stability
-    eps_tol = sqrt(eps(eltype(x)))
-    
-    # Check that initially x is within the bounds (with tolerance)
-    if !all_within_bounds(x, LB, UB, eps_tol)
-        # Try to snap x to bounds if it's very close
-        x_fixed = copy(x)
-        for i in eachindex(x)
-            if x[i] < LB[i] && x[i] > LB[i] - eps_tol
-                x_fixed[i] = LB[i]  # Snap to lower bound
-            elseif x[i] > UB[i] && x[i] < UB[i] + eps_tol
-                x_fixed[i] = UB[i]  # Snap to upper bound
-            end
-        end
-        
+    # Check that initially x is within the bounds
+    if !all_within_bounds(x, LB, UB)
+        # Try to snap x to bounds if it's at least very close
+        x = snap_to_bounds(x, LB, UB)
         # Check if snapping fixed the issue
-        if !all_within_bounds(x_fixed, LB, UB)
-            error("    Somehow x is not within the bounds")
+        if !all_within_bounds(x, LB, UB)
+            error("    x out of bound and its more than just rounding errors")
         end
-        
-        # Use the fixed point instead
-        x = x_fixed
     end
 
     # Special case: if s is all zeros, return Inf (no movement needed to reach boundary)
@@ -205,7 +218,12 @@ function coleman_li_scaling_factors(x::T, g::T, LB::T, UB::T) where {T<:Abstract
 
     # Check that initially x is within the bounds
     if !all_within_bounds(x, LB, UB)
-        error("    Somehow x is not within the bounds")
+        # Try to snap x to bounds if it's at least very close
+        x = snap_to_bounds(x, LB, UB)
+        # Check if snapping fixed the issue
+        if !all_within_bounds(x, LB, UB)
+            error("    x out of bound and its more than just rounding errors")
+        end
     end
 
     # Initialize the scaling factors to 1
@@ -459,48 +477,48 @@ function compute_reflected_step(
 ) where {T<:Real}
     # Compute step to boundary
     p_steplength, boundary_hit = stepsize_to_bound_feasible_region(x, gn, LB, UB)
-    
+
     # Get the reflection direction
     rf_hat = copy(gn_hat)
     rf_hat[boundary_hit] = -rf_hat[boundary_hit]
     rf = D .* rf_hat
-    
+
     # Boundary point and scaled step
     boundary_step = p_steplength * gn
     boundary_step_hat = p_steplength * gn_hat
     x_boundary = x + (one(T) - T(0.01)) * boundary_step  # Slightly inside boundary
-    
+
     # Compute limits for the reflection step
     _, to_trust = stepsizes_to_bound_trust_region(boundary_step_hat, rf_hat, trust_radius)
     to_feasible, _ = stepsize_to_bound_feasible_region(x_boundary, rf, LB, UB)
-    
+
     # Find bounds on reflection step
     rf_steplength = min(to_trust, to_feasible)
-    
+
     # Default to infinite value (will not be chosen)
     rf_value = convert(T, Inf)
     rf_result = copy(gn)  # Default value
     rf_hat_result = copy(gn_hat)  # Default value
-    
+
     # Calculate reflection step if possible
     if rf_steplength > zero(T)
         # Lower bound: slightly back from boundary
         rf_steplength_l = (one(T) - theta) * p_steplength / rf_steplength
-        
+
         # Upper bound: either trust region boundary or feasible region boundary
         if rf_steplength == to_feasible
             rf_steplength_u = theta * to_feasible  # Stay slightly inside feasible region
         else
             rf_steplength_u = to_trust  # Go to trust region boundary
         end
-        
+
         # Check if reflection range is valid
         if rf_steplength_l <= rf_steplength_u
             # Optimize along reflection direction
             a, b, c = build_quadratic_1d(H_hat, g_hat, rf_hat, boundary_step_hat)
             @debug "Computing reflection step by minimizing quadratic"
             optimal_t, rf_value = minimize_quadratic_1d(a, b, rf_steplength_l, rf_steplength_u, c)
-            
+
             # Compute resulting step vectors
             rf_hat_result = boundary_step_hat + optimal_t * rf_hat
             rf_result = D .* rf_hat_result
@@ -508,7 +526,7 @@ function compute_reflected_step(
     else
         @debug "Reflection step invalid: rf_steplength = $rf_steplength"
     end
-    
+
     return rf_result, rf_hat_result, rf_value
 end
 
@@ -548,18 +566,18 @@ function compute_interior_newton_step(
 ) where {T<:Real}
     # First find the step to the boundary, just as in the original implementation
     p_steplength, _ = stepsize_to_bound_feasible_region(x, gn, LB, UB)
-    
+
     # Scale the Newton direction to reach the boundary
     boundary_step = p_steplength * gn
     boundary_step_hat = p_steplength * gn_hat
-    
+
     # Then apply theta to stay strictly inside the feasible region
     step = theta * boundary_step
     step_hat = theta * boundary_step_hat
-    
+
     @debug "Computing interior Newton step value (from boundary step scaled by theta)"
     step_value = evaluate_quadratic(H_hat, g_hat, step_hat)
-    
+
     return step, step_hat, step_value
 end
 
@@ -589,35 +607,35 @@ function compute_steepest_descent_step(
     H_hat,
     D::AbstractVector{T},
     trust_radius::T,
-    theta::T, 
+    theta::T,
     LB::AbstractVector{T},
     UB::AbstractVector{T}
 ) where {T<:Real}
     # Steepest descent direction
     sd_hat = -g_hat
     sd_dir = D .* sd_hat
-    
+
     # Calculate step limits
     sd_hat_norm = norm(sd_hat)
     to_trust = sd_hat_norm > 0 ? trust_radius / sd_hat_norm : convert(T, Inf)
     to_feasible, _ = stepsize_to_bound_feasible_region(x, sd_dir, LB, UB)
-    
+
     # Determine maximum step length
     if to_feasible < to_trust
         sd_steplength_max = theta * to_feasible  # Stay slightly inside feasible region
     else
         sd_steplength_max = to_trust  # Limited by trust region
     end
-    
+
     # Optimize along steepest descent direction
     a, b, c = build_quadratic_1d(H_hat, g_hat, sd_hat, zero(sd_hat))
     @debug "Computing steepest descent step by minimizing quadratic"
     optimal_t, step_value = minimize_quadratic_1d(a, b, zero(T), sd_steplength_max, zero(T))
-    
+
     # Compute resulting step vectors
     step_hat = optimal_t * sd_hat
     step = D .* step_hat
-    
+
     return step, step_hat, step_value
 end
 
@@ -657,35 +675,35 @@ function choose_step(
     UB::AbstractVector{T}
 ) where {T<:Real}
     # First check if the full Newton step is feasible
-    newton_feasible, newton_step, newton_step_hat, newton_value = 
+    newton_feasible, newton_step, newton_step_hat, newton_value =
         compute_newton_step(x, gn, gn_hat, g_hat, H_hat, LB, UB)
-    
+
     if newton_feasible
         @debug "Choosing full Inexact Newton step"
         return newton_step, newton_step_hat, newton_value
     end
-    
+
     # Compute the three candidate steps
     @debug "Computing candidate steps"
-    
+
     # 1. Reflected Newton step
     rf_step, rf_step_hat, rf_value = compute_reflected_step(
         x, gn, gn_hat, g_hat, H_hat, D, trust_radius, theta, LB, UB)
-    
+
     # 2. Interior Newton step - Fixed: now passing all required arguments
     gn_step, gn_step_hat, gn_value = compute_interior_newton_step(
         x, gn, gn_hat, g_hat, H_hat, D, theta, LB, UB)
-    
+
     # 3. Steepest descent step
     sd_step, sd_step_hat, sd_value = compute_steepest_descent_step(
         x, g_hat, H_hat, D, trust_radius, theta, LB, UB)
-    
+
     # Select the step with the minimum value
     step_values = [gn_value, rf_value, sd_value]
     min_value, idx = findmin(step_values)
-    
+
     @debug "Step values - Newton: $(gn_value), Reflected: $(rf_value), Steepest Descent: $(sd_value)"
-    
+
     if idx == 1
         @debug "Choosing scaled Inexact Newton step"
         return gn_step, gn_step_hat, gn_value
