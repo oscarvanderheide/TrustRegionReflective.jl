@@ -51,15 +51,15 @@ function trust_region_reflective(
         @info "    Δ: $(Δ)"
         
         # Check for convergence based on gradient norm and function value
-        # g_norm = norm(g)
-        # tol = options.tol_steihaug
+        g_norm = norm(g)
+        tol = options.tol_convergence
         
-        # # For least squares problems, check if we're close enough to the minimum
-        # if (g_norm < tol) || (iter > 1 && abs(state.f[end-1] - f) < tol * max(1.0, abs(f)))
-        #     @info "Convergence achieved: gradient norm $(g_norm) or function change below tolerance"
-        #     converged = true
-        #     break
-        # end
+        # For least squares problems, check if we're close enough to the minimum
+        if (g_norm < tol) || (iter > 1 && abs(state.f[end-1] - f) < tol * max(1.0, abs(f)))
+            @info "Convergence achieved: gradient norm $(g_norm) or function change below tolerance"
+            converged = true
+            break
+        end
 
         # # Ensure x is within bounds (with a small numerical tolerance)
         # @timeit to "Snap to bounds" x = snap_to_bounds(x, LB, UB)

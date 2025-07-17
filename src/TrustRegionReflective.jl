@@ -34,6 +34,7 @@ reduction for the ratio calculation that takes into account the coleman li scali
     max_iter_trf::Int = 20
     max_iter_steihaug::Int = 20
     tol_steihaug::T = 1E-6
+    tol_convergence::T = 1E-6
     init_scale_radius::T = 0.1
     save_every_iter::Bool = false
     modfified_reduction_for_ratio::Bool = false
