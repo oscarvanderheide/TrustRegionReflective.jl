@@ -30,11 +30,11 @@ applied to the norm of the initial `x0`.
 reduction for the ratio calculation that takes into account the coleman li scaling factors.
 """
 @kwdef struct TRFOptions{T<:Real}
-    min_ratio::T = T(0.1)
+    min_ratio::T = 0.1
     max_iter_trf::Int = 20
     max_iter_steihaug::Int = 20
-    tol_steihaug::T = T(1E-6)
-    init_scale_radius::T = T(0.1)
+    tol_steihaug::T = 1E-6
+    init_scale_radius::T = 0.1
     save_every_iter::Bool = false
     modfified_reduction_for_ratio::Bool = false
 end
