@@ -492,7 +492,9 @@ function compute_reflected_step(
     # Boundary point and scaled step
     boundary_step = p_steplength * gn
     boundary_step_hat = p_steplength * gn_hat
-    x_boundary = x + (one(T) - T(0.01)) * boundary_step  # Slightly inside boundary
+    # Use a more conservative offset to avoid numerical issues
+    safety_offset = sqrt(eps(T)) 
+    x_boundary = x + (one(T) - safety_offset) * boundary_step  # Safely inside boundary
 
     # Compute limits for the reflection step
     _, to_trust = stepsizes_to_bound_trust_region(boundary_step_hat, rf_hat, trust_radius)
@@ -513,7 +515,7 @@ function compute_reflected_step(
 
         # Upper bound: either trust region boundary or feasible region boundary
         if rf_steplength == to_feasible
-            rf_steplength_u = theta * to_feasible  # Stay slightly inside feasible region
+            rf_steplength_u = to_feasible  # Don't apply theta here - apply after unscaling
         else
             rf_steplength_u = to_trust  # Go to trust region boundary
         end
@@ -528,6 +530,12 @@ function compute_reflected_step(
             # Compute resulting step vectors
             rf_hat_result = boundary_step_hat + optimal_t * rf_hat
             rf_result = D .* rf_hat_result
+            
+            # Apply theta safety factor AFTER unscaling if we hit feasible boundary
+            if rf_steplength == to_feasible
+                rf_result = theta * rf_result
+                rf_hat_result = theta * rf_hat_result
+            end
         end
     else
         @debug "Reflection step invalid: rf_steplength = $rf_steplength"
@@ -628,7 +636,7 @@ function compute_steepest_descent_step(
 
     # Determine maximum step length
     if to_feasible < to_trust
-        sd_steplength_max = theta * to_feasible  # Stay slightly inside feasible region
+        sd_steplength_max = to_feasible  # Don't apply theta here - apply after unscaling
     else
         sd_steplength_max = to_trust  # Limited by trust region
     end
@@ -641,6 +649,12 @@ function compute_steepest_descent_step(
     # Compute resulting step vectors
     step_hat = optimal_t * sd_hat
     step = D .* step_hat
+    
+    # Apply theta safety factor AFTER unscaling to preserve bounds safety
+    if to_feasible < to_trust
+        step = theta * step
+        step_hat = theta * step_hat
+    end
 
     return step, step_hat, step_value
 end
