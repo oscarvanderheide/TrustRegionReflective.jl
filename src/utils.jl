@@ -36,17 +36,21 @@ Snap elements of `x` that are slightly out of bounds (defined by `tol`) to the b
 # Returns
 - `x_fixed`: A (potentially) modified version of `x`.
 """
-function snap_to_bounds(x::AbstractVector{T}, LB, UB, tol = sqrt(eps(eltype(T)))) where {T<:Real}
+function snap_to_bounds(x_original::AbstractVector{T}, LB, UB, tol = sqrt(eps(eltype(T)))) where {T<:Real}
+    x = copy(x_original)
 
-    x_fixed = copy(x)
+    # Create masks for elements that need snapping
+    # snap_to_lb_idx = (x .< LB) .& (x .> LB .- tol)
+    # snap_to_ub_idx = (x .> UB) .& (x .< UB .+ tol)
 
-    lb_idx = (x .< LB) .& (x .> LB .- tol)
-    x_fixed[lb_idx] .= LB[lb_idx]
+    snap_to_lb_idx = (LB .- tol ) .< x .< LB
+    snap_to_ub_idx = UB .< x .< (UB .+ tol)
 
-    ub_idx = (x .> UB) .& (x .< UB .+ tol)
-    x_fixed[ub_idx] .= UB[ub_idx]
+    # Apply snapping where needed
+    x = ifelse.(snap_to_lb_idx, LB, x)
+    x = ifelse.(snap_to_ub_idx, UB, x)
 
-    return x_fixed
+    return x
 end
 
 """
@@ -70,7 +74,8 @@ function stepsize_to_bound_feasible_region(x::T, s::T, LB::T, UB::T) where {T<:A
         x = snap_to_bounds(x, LB, UB)
         # Check if snapping fixed the issue
         if !all_within_bounds(x, LB, UB)
-            error("    x out of bound and its more than just rounding errors")
+            @warn "    x out of bound and its more than just rounding errors"
+            x = snap_to_bounds(x, LB, UB, Inf)
         end
     end
 
@@ -222,7 +227,8 @@ function coleman_li_scaling_factors(x::T, g::T, LB::T, UB::T) where {T<:Abstract
         x = snap_to_bounds(x, LB, UB)
         # Check if snapping fixed the issue
         if !all_within_bounds(x, LB, UB)
-            error("    x out of bound and its more than just rounding errors")
+            @warn "    x out of bound and its more than just rounding errors"
+            x = snap_to_bounds(x, LB, UB, Inf)
         end
     end
 

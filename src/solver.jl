@@ -61,15 +61,8 @@ function trust_region_reflective(
             break
         end
 
-        # Ensure x is within bounds (with a small numerical tolerance)
-        eps_tol = sqrt(eps(T))
-        # Create masks for elements that need snapping
-        snap_to_lower_idx = (x .< LB) .& (x .> LB .- eps_tol)
-        snap_to_upper_idx = (x .> UB) .& (x .< UB .+ eps_tol)
-
-        # Apply snapping where needed
-        x = ifelse.(snap_to_lower_idx, LB, x)
-        x = ifelse.(snap_to_upper_idx, UB, x)
+        # # Ensure x is within bounds (with a small numerical tolerance)
+        # @timeit to "Snap to bounds" x = snap_to_bounds(x, LB, UB)
 
         @timeit to "CL scaling" v, dv = coleman_li_scaling_factors(x, g, LB, UB)
 
