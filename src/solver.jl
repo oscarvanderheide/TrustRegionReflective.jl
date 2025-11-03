@@ -11,8 +11,8 @@ function trust_region_reflective(
     # Load the initial guess
     x = x0
 
-    @info "    Calling f,r,g,H = objective(x,'frgH')"
-    @timeit to "frgH" f, r, g, H = objective(x, "frgH")
+    @info "    Calling f,r,g,H, H⁻¹_approx = objective(x,'frgH')"
+    @timeit to "frgH" f, r, g, H, H⁻¹_approx = objective(x, "frgH")
 
     # Set initial trust radius Δ
     Δ = norm(x)
@@ -43,8 +43,8 @@ function trust_region_reflective(
         @info "ITERATION #$(iter)"
 
         if iter > 1
-            @info "    Calling f,r,g,H = objective(x,'frgH')"
-            @timeit to "Objective (frgH)" f, r, g, H = objective(x, "frgH")
+            @info "    Calling f,r,g,H, H⁻¹_approx = objective(x,'frgH')"
+            @timeit to "Objective (frgH)" f, r, g, H, H⁻¹_approx = objective(x, "frgH")
         end
 
         @info "    f: $(f)"
@@ -75,6 +75,7 @@ function trust_region_reflective(
         else
             Ĥ = x -> D .* (H * (D .* x))
         end
+        D⁻¹ = inv.(D)
 
         step_accepted = false
         perform_steihaug = true
@@ -85,7 +86,7 @@ function trust_region_reflective(
         while !step_accepted
 
             # Compute potential step using Steihaug
-            P = y -> y # Preconditioner, currently not used
+            P = y -> D⁻¹ .* (H⁻¹_approx * (D⁻¹ .* y)); # Preconditioner 
             z0 = zero(ĝ)
             if perform_steihaug
 
