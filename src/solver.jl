@@ -70,7 +70,11 @@ function trust_region_reflective(
         @timeit to "D" D = sqrt.(v)
         @timeit to "g_hat" ĝ = D .* g
         @timeit to "C" C = dv .* g
-        Ĥ = x -> (D .* (H * (D .* x))) + (C .* x)
+        if options.modfified_reduction_for_ratio
+            Ĥ = x -> (D .* (H * (D .* x))) + (C .* x)
+        else
+            Ĥ = x -> D .* (H * (D .* x))
+        end
 
         step_accepted = false
         perform_steihaug = true
