@@ -1,7 +1,7 @@
 name = "TrustRegionReflective"
 uuid = "b2fb89f2-9639-4e52-b458-b5e2ad6f229e"
 authors = ["oscar <oscarvanderheide@gmail.com>"]
-version = "0.2.3"
+version = "0.3.0"
 
 [deps]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
