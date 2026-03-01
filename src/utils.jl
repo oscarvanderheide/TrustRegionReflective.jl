@@ -304,7 +304,7 @@ function build_quadratic_1d(H, g::T, s::T, s0::T) where {T<:AbstractVector{<:Rea
     # f(t) = (1/2) * (s0 + s*t)' * H * (s0 + s*t) + g' * (s0 + s*t)
 
     a = (1 // 2) * s' * H(s)
-    b = g' * s + (1 // 2) * s' * H(s0) + (1 // 2) * s' * H(s0)
+    b = g' * s + s' * H(s0)
     c = g' * s0 + (1 // 2) * s0' * H(s0)
 
     return a, b, c
