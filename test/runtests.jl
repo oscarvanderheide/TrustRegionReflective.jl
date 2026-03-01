@@ -1164,3 +1164,4 @@ end
 
 # Include our convergence tests
 include("convergence_tests.jl")
+include("type_stability_tests.jl")
