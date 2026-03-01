@@ -1,6 +1,6 @@
 name = "TrustRegionReflective"
 uuid = "b2fb89f2-9639-4e52-b458-b5e2ad6f229e"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["oscar <oscarvanderheide@gmail.com>"]
 
 [deps]
