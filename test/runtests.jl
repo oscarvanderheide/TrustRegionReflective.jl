@@ -814,12 +814,12 @@ end
     x = [1.0, 1.0]
     gn = [0.5, 0.5]
     gn_hat = [0.5, 0.5]
-    g_hat = [-1.0, -1.0]
-    H_hat = make_hessian([1.0 0.0; 0.0 1.0])
+    ĝ = [-1.0, -1.0]
+    Ĥ = make_hessian([1.0 0.0; 0.0 1.0])
     LB = [0.0, 0.0]
     UB = [2.0, 2.0]
 
-    is_feasible, step, step_hat, step_value = compute_newton_step(x, gn, gn_hat, g_hat, H_hat, LB, UB)
+    is_feasible, step, step_hat, step_value = compute_newton_step(x, gn, gn_hat, ĝ, Ĥ, LB, UB)
     @test is_feasible == true
     @test step == gn
     @test step_hat == gn_hat
@@ -829,12 +829,12 @@ end
     x = [1.0, 1.0]
     gn = [2.0, 2.0]
     gn_hat = [2.0, 2.0]
-    g_hat = [-1.0, -1.0]
-    H_hat = make_hessian([1.0 0.0; 0.0 1.0])
+    ĝ = [-1.0, -1.0]
+    Ĥ = make_hessian([1.0 0.0; 0.0 1.0])
     LB = [0.0, 0.0]
     UB = [2.0, 2.0]
 
-    is_feasible, step, step_hat, step_value = compute_newton_step(x, gn, gn_hat, g_hat, H_hat, LB, UB)
+    is_feasible, step, step_hat, step_value = compute_newton_step(x, gn, gn_hat, ĝ, Ĥ, LB, UB)
     @test is_feasible == false
     @test step === nothing
 
@@ -842,12 +842,12 @@ end
     x = Float32[1.0, 1.0]
     gn = Float32[0.5, 0.5]
     gn_hat = Float32[0.5, 0.5]
-    g_hat = Float32[-1.0, -1.0]
-    H_hat = make_hessian(Float32[1.0 0.0; 0.0 1.0])
+    ĝ = Float32[-1.0, -1.0]
+    Ĥ = make_hessian(Float32[1.0 0.0; 0.0 1.0])
     LB = Float32[0.0, 0.0]
     UB = Float32[2.0, 2.0]
 
-    is_feasible, step, step_hat, step_value = compute_newton_step(x, gn, gn_hat, g_hat, H_hat, LB, UB)
+    is_feasible, step, step_hat, step_value = compute_newton_step(x, gn, gn_hat, ĝ, Ĥ, LB, UB)
     @test is_feasible == true
     @test step == gn
     @test step_hat == gn_hat
@@ -859,13 +859,13 @@ end
         x = CuArray([1.0, 1.0])
         gn = CuArray([0.5, 0.5])
         gn_hat = CuArray([0.5, 0.5])
-        g_hat = CuArray([-1.0, -1.0])
-        H_hat = x -> CUDA.CUBLAS.gemm('N', 'N', CuArray(Float64[1.0 0.0; 0.0 1.0]), x)
-        H_hat = LinearMap(vec ∘ H_hat, 2,2)
+        ĝ = CuArray([-1.0, -1.0])
+        Ĥ = x -> CUDA.CUBLAS.gemm('N', 'N', CuArray(Float64[1.0 0.0; 0.0 1.0]), x)
+        Ĥ = LinearMap(vec ∘ Ĥ, 2,2)
         LB = CuArray([0.0, 0.0])
         UB = CuArray([2.0, 2.0])
 
-        is_feasible, step, step_hat, step_value = compute_newton_step(x, gn, gn_hat, g_hat, H_hat, LB, UB)
+        is_feasible, step, step_hat, step_value = compute_newton_step(x, gn, gn_hat, ĝ, Ĥ, LB, UB)
         @test is_feasible == true
         @test step isa CuArray
         @test step_hat isa CuArray
@@ -887,14 +887,14 @@ end
     x = [1.0, 1.0]
     gn = [2.0, 2.0]
     gn_hat = [2.0, 2.0]
-    g_hat = [-1.0, -1.0]
-    H_hat = make_hessian([1.0 0.0; 0.0 1.0])
+    ĝ = [-1.0, -1.0]
+    Ĥ = make_hessian([1.0 0.0; 0.0 1.0])
     D = [1.0, 1.0]
     theta = 0.95
     LB = [0.0, 0.0]
     UB = [2.0, 2.0]
 
-    step, step_hat, step_value = compute_interior_newton_step(x, gn, gn_hat, g_hat, H_hat, D, theta, LB, UB)
+    step, step_hat, step_value = compute_interior_newton_step(x, gn, gn_hat, ĝ, Ĥ, D, theta, LB, UB)
     @test step isa Vector
     @test step_hat isa Vector
     @test step_value isa Real
@@ -905,14 +905,14 @@ end
     x = Float32[1.0, 1.0]
     gn = Float32[2.0, 2.0]
     gn_hat = Float32[2.0, 2.0]
-    g_hat = Float32[-1.0, -1.0]
-    H_hat = make_hessian(Float32[1.0 0.0; 0.0 1.0])
+    ĝ = Float32[-1.0, -1.0]
+    Ĥ = make_hessian(Float32[1.0 0.0; 0.0 1.0])
     D = Float32[1.0, 1.0]
     theta = Float32(0.95)
     LB = Float32[0.0, 0.0]
     UB = Float32[2.0, 2.0]
 
-    step, step_hat, step_value = compute_interior_newton_step(x, gn, gn_hat, g_hat, H_hat, D, theta, LB, UB)
+    step, step_hat, step_value = compute_interior_newton_step(x, gn, gn_hat, ĝ, Ĥ, D, theta, LB, UB)
     @test step isa Vector{Float32}
     @test step_hat isa Vector{Float32}
     @test step_value isa Real
@@ -924,15 +924,15 @@ end
         x = CuArray([1.0, 1.0])
         gn = CuArray([2.0, 2.0])
         gn_hat = CuArray([2.0, 2.0])
-        g_hat = CuArray([-1.0, -1.0])
-        H_hat = x -> CUDA.CUBLAS.gemm('N', 'N', CuArray(Float64[1.0 0.0; 0.0 1.0]), x)
-        H_hat = LinearMap(vec ∘ H_hat, 2,2)
+        ĝ = CuArray([-1.0, -1.0])
+        Ĥ = x -> CUDA.CUBLAS.gemm('N', 'N', CuArray(Float64[1.0 0.0; 0.0 1.0]), x)
+        Ĥ = LinearMap(vec ∘ Ĥ, 2,2)
         D = CuArray([1.0, 1.0])
         theta = 0.95
         LB = CuArray([0.0, 0.0])
         UB = CuArray([2.0, 2.0])
 
-        step, step_hat, step_value = compute_interior_newton_step(x, gn, gn_hat, g_hat, H_hat, D, theta, LB, UB)
+        step, step_hat, step_value = compute_interior_newton_step(x, gn, gn_hat, ĝ, Ĥ, D, theta, LB, UB)
         @test step isa CuArray
         @test step_hat isa CuArray
         @test step_value isa Real
@@ -955,15 +955,15 @@ end
     x = [1.0, 1.0]
     gn = [2.0, 2.0]
     gn_hat = [2.0, 2.0]
-    g_hat = [-1.0, -1.0]
-    H_hat = make_hessian([1.0 0.0; 0.0 1.0])
+    ĝ = [-1.0, -1.0]
+    Ĥ = make_hessian([1.0 0.0; 0.0 1.0])
     D = [1.0, 1.0]
     trust_radius = 5.0
     theta = 0.95
     LB = [0.0, 0.0]
     UB = [2.0, 2.0]
 
-    step, step_hat, step_value = compute_reflected_step(x, gn, gn_hat, g_hat, H_hat, D, trust_radius, theta, LB, UB)
+    step, step_hat, step_value = compute_reflected_step(x, gn, gn_hat, ĝ, Ĥ, D, trust_radius, theta, LB, UB)
     @test step isa Vector
     @test step_hat isa Vector
     @test step_value isa Real
@@ -972,15 +972,15 @@ end
     x = Float32[1.0, 1.0]
     gn = Float32[2.0, 2.0]
     gn_hat = Float32[2.0, 2.0]
-    g_hat = Float32[-1.0, -1.0]
-    H_hat = make_hessian(Float32[1.0 0.0; 0.0 1.0])
+    ĝ = Float32[-1.0, -1.0]
+    Ĥ = make_hessian(Float32[1.0 0.0; 0.0 1.0])
     D = Float32[1.0, 1.0]
     trust_radius = Float32(5.0)
     theta = Float32(0.95)
     LB = Float32[0.0, 0.0]
     UB = Float32[2.0, 2.0]
 
-    step, step_hat, step_value = compute_reflected_step(x, gn, gn_hat, g_hat, H_hat, D, trust_radius, theta, LB, UB)
+    step, step_hat, step_value = compute_reflected_step(x, gn, gn_hat, ĝ, Ĥ, D, trust_radius, theta, LB, UB)
     @test step isa Vector{Float32}
     @test step_hat isa Vector{Float32}
     @test step_value isa Real
@@ -990,16 +990,16 @@ end
         x = CuArray([1.0, 1.0])
         gn = CuArray([2.0, 2.0])
         gn_hat = CuArray([2.0, 2.0])
-        g_hat = CuArray([-1.0, -1.0])
-        H_hat = x -> CUDA.CUBLAS.gemm('N', 'N', CuArray(Float64[1.0 0.0; 0.0 1.0]), x)
-        H_hat = LinearMap(vec ∘ H_hat, 2,2)
+        ĝ = CuArray([-1.0, -1.0])
+        Ĥ = x -> CUDA.CUBLAS.gemm('N', 'N', CuArray(Float64[1.0 0.0; 0.0 1.0]), x)
+        Ĥ = LinearMap(vec ∘ Ĥ, 2,2)
         D = CuArray([1.0, 1.0])
         trust_radius = 5.0
         theta = 0.95
         LB = CuArray([0.0, 0.0])
         UB = CuArray([2.0, 2.0])
 
-        step, step_hat, step_value = compute_reflected_step(x, gn, gn_hat, g_hat, H_hat, D, trust_radius, theta, LB, UB)
+        step, step_hat, step_value = compute_reflected_step(x, gn, gn_hat, ĝ, Ĥ, D, trust_radius, theta, LB, UB)
         @test step isa CuArray
         @test step_hat isa CuArray
         @test step_value isa Real
@@ -1018,15 +1018,15 @@ end
 
     # Test case 1: Basic functionality
     x = [1.0, 1.0]
-    g_hat = [1.0, 1.0]
-    H_hat = make_hessian([1.0 0.0; 0.0 1.0])
+    ĝ = [1.0, 1.0]
+    Ĥ = make_hessian([1.0 0.0; 0.0 1.0])
     D = [1.0, 1.0]
     trust_radius = 5.0
     theta = 0.95
     LB = [0.0, 0.0]
     UB = [2.0, 2.0]
 
-    step, step_hat, step_value = compute_steepest_descent_step(x, g_hat, H_hat, D, trust_radius, theta, LB, UB)
+    step, step_hat, step_value = compute_steepest_descent_step(x, ĝ, Ĥ, D, trust_radius, theta, LB, UB)
     @test step isa Vector
     @test step_hat isa Vector
     @test step_value isa Real
@@ -1035,15 +1035,15 @@ end
 
     # Test case 2: Float32 inputs
     x = Float32[1.0, 1.0]
-    g_hat = Float32[1.0, 1.0]
-    H_hat = make_hessian(Float32[1.0 0.0; 0.0 1.0])
+    ĝ = Float32[1.0, 1.0]
+    Ĥ = make_hessian(Float32[1.0 0.0; 0.0 1.0])
     D = Float32[1.0, 1.0]
     trust_radius = Float32(5.0)
     theta = Float32(0.95)
     LB = Float32[0.0, 0.0]
     UB = Float32[2.0, 2.0]
 
-    step, step_hat, step_value = compute_steepest_descent_step(x, g_hat, H_hat, D, trust_radius, theta, LB, UB)
+    step, step_hat, step_value = compute_steepest_descent_step(x, ĝ, Ĥ, D, trust_radius, theta, LB, UB)
     @test step isa Vector{Float32}
     @test step_hat isa Vector{Float32}
     @test step_value isa Real
@@ -1053,16 +1053,16 @@ end
     # Test case 3: CuArray inputs
     if CUDA.has_cuda_gpu()
         x = CuArray([1.0, 1.0])
-        g_hat = CuArray([1.0, 1.0])
-        H_hat = x -> CUDA.CUBLAS.gemm('N', 'N', CuArray(Float64[1.0 0.0; 0.0 1.0]), x)
-        H_hat = LinearMap(vec ∘ H_hat, 2,2)
+        ĝ = CuArray([1.0, 1.0])
+        Ĥ = x -> CUDA.CUBLAS.gemm('N', 'N', CuArray(Float64[1.0 0.0; 0.0 1.0]), x)
+        Ĥ = LinearMap(vec ∘ Ĥ, 2,2)
         D = CuArray([1.0, 1.0])
         trust_radius = 5.0
         theta = 0.95
         LB = CuArray([0.0, 0.0])
         UB = CuArray([2.0, 2.0])
 
-        step, step_hat, step_value = compute_steepest_descent_step(x, g_hat, H_hat, D, trust_radius, theta, LB, UB)
+        step, step_hat, step_value = compute_steepest_descent_step(x, ĝ, Ĥ, D, trust_radius, theta, LB, UB)
         @test step isa CuArray
         @test step_hat isa CuArray
         @test step_value isa Real
@@ -1083,15 +1083,15 @@ end
     x = [1.0, 1.0]
     gn = [0.5, 0.5]
     gn_hat = [0.5, 0.5]
-    g_hat = [-1.0, -1.0]
-    H_hat = make_hessian([1.0 0.0; 0.0 1.0])
+    ĝ = [-1.0, -1.0]
+    Ĥ = make_hessian([1.0 0.0; 0.0 1.0])
     D = [1.0, 1.0]
     trust_radius = 5.0
     theta = 0.95
     LB = [0.0, 0.0]
     UB = [2.0, 2.0]
 
-    step, step_hat, step_value = choose_step(x, H_hat, g_hat, gn, gn_hat, D, trust_radius, theta, LB, UB)
+    step, step_hat, step_value = choose_step(x, Ĥ, ĝ, gn, gn_hat, D, trust_radius, theta, LB, UB)
     @test step isa Vector
     @test step_hat isa Vector
     @test step_value isa Real
@@ -1102,15 +1102,15 @@ end
     x = [1.0, 1.0]
     gn = [2.0, 2.0]
     gn_hat = [2.0, 2.0]
-    g_hat = [-1.0, -1.0]
-    H_hat = make_hessian([1.0 0.0; 0.0 1.0])
+    ĝ = [-1.0, -1.0]
+    Ĥ = make_hessian([1.0 0.0; 0.0 1.0])
     D = [1.0, 1.0]
     trust_radius = 5.0
     theta = 0.95
     LB = [0.0, 0.0]
     UB = [2.0, 2.0]
 
-    step, step_hat, step_value = choose_step(x, H_hat, g_hat, gn, gn_hat, D, trust_radius, theta, LB, UB)
+    step, step_hat, step_value = choose_step(x, Ĥ, ĝ, gn, gn_hat, D, trust_radius, theta, LB, UB)
     @test step isa Vector
     @test step_hat isa Vector
     @test step_value isa Real
@@ -1122,15 +1122,15 @@ end
     x = Float32[1.0, 1.0]
     gn = Float32[0.5, 0.5]
     gn_hat = Float32[0.5, 0.5]
-    g_hat = Float32[-1.0, -1.0]
-    H_hat = make_hessian(Float32[1.0 0.0; 0.0 1.0])
+    ĝ = Float32[-1.0, -1.0]
+    Ĥ = make_hessian(Float32[1.0 0.0; 0.0 1.0])
     D = Float32[1.0, 1.0]
     trust_radius = Float32(5.0)
     theta = Float32(0.95)
     LB = Float32[0.0, 0.0]
     UB = Float32[2.0, 2.0]
 
-    step, step_hat, step_value = choose_step(x, H_hat, g_hat, gn, gn_hat, D, trust_radius, theta, LB, UB)
+    step, step_hat, step_value = choose_step(x, Ĥ, ĝ, gn, gn_hat, D, trust_radius, theta, LB, UB)
     @test step isa Vector{Float32}
     @test step_hat isa Vector{Float32}
     @test step_value isa Real
@@ -1142,16 +1142,16 @@ end
         x = CuArray([1.0, 1.0])
         gn = CuArray([0.5, 0.5])
         gn_hat = CuArray([0.5, 0.5])
-        g_hat = CuArray([-1.0, -1.0])
-        H_hat = x -> CUDA.CUBLAS.gemm('N', 'N', CuArray(Float64[1.0 0.0; 0.0 1.0]), x)
-        H_hat = LinearMap(vec ∘ H_hat, 2,2)
+        ĝ = CuArray([-1.0, -1.0])
+        Ĥ = x -> CUDA.CUBLAS.gemm('N', 'N', CuArray(Float64[1.0 0.0; 0.0 1.0]), x)
+        Ĥ = LinearMap(vec ∘ Ĥ, 2,2)
         D = CuArray([1.0, 1.0])
         trust_radius = 5.0
         theta = 0.95
         LB = CuArray([0.0, 0.0])
         UB = CuArray([2.0, 2.0])
 
-        step, step_hat, step_value = choose_step(x, H_hat, g_hat, gn, gn_hat, D, trust_radius, theta, LB, UB)
+        step, step_hat, step_value = choose_step(x, Ĥ, ĝ, gn, gn_hat, D, trust_radius, theta, LB, UB)
         @test step isa CuArray
         @test step_hat isa CuArray
         @test step_value isa Real

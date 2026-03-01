@@ -11,19 +11,19 @@ function trust_region_reflective(
     # Load the initial guess
     x = x0
 
-    @info "    Calling f,r,g,H, H_inv_approx = objective(x,'frgH')"
-    @timeit to "frgH" f, r, g, H, H_inv_approx = objective(x, "frgH")
+    @info "    Calling f,r,g,H, H⁻¹_approx = objective(x,'frgH')"
+    @timeit to "frgH" f, r, g, H, H⁻¹_approx = objective(x, "frgH")
 
     # Set initial trust radius
-    delta = norm(x)
-    if delta == zero(T)
+    Δ = norm(x)
+    if Δ == zero(T)
         # When x0 is all zeros, use a default value based on problem dimensions
-        delta = one(T) * sqrt(length(x))
+        Δ = one(T) * sqrt(length(x))
     end
 
     # Set initial trust radius with the guaranteed non-zero norm
-    delta = options.init_scale_radius * delta |> eltype(x)
-    delta_limit = delta * 1E-10 |> eltype(x)
+    Δ = options.init_scale_radius * Δ |> eltype(x)
+    Δ_limit = Δ * 1E-10 |> eltype(x)
 
     iter = 1
     converged = false
@@ -42,14 +42,14 @@ function trust_region_reflective(
 
         @info "ITERATION #$(iter)"
 
-        H⁻¹_approx = H_inv_approx
+        H⁻¹_approx = H⁻¹_approx
         if iter > 1
-            @info "    Calling f,r,g,H, H_inv_approx = objective(x,'frgH')"
-            @timeit to "Objective (frgH)" f, r, g, H, H_inv_approx = objective(x, "frgH")
+            @info "    Calling f,r,g,H, H⁻¹_approx = objective(x,'frgH')"
+            @timeit to "Objective (frgH)" f, r, g, H, H⁻¹_approx = objective(x, "frgH")
         end
 
         @info "    f: $(f)"
-        @info "    delta: $(delta)"
+        @info "    Δ: $(Δ)"
 
         @timeit to "CL scaling" v, dv = coleman_li_scaling_factors(x, g, LB, UB)
 
@@ -65,14 +65,16 @@ function trust_region_reflective(
             break
         end
 
+
+
         # Make scaling operator and scale gradient and Hessian
         @timeit to "D" D = sqrt.(v)
-        @timeit to "g_hat" g_hat = D .* g
+        @timeit to "ĝ" ĝ = D .* g
         @timeit to "C" C = dv .* g
         # Always include the Coleman-Li derivative term (C .* x) in the scaled Hessian,
         # as it regularizes the quadratic model to account for the nonlinear scaling.
         H_scaled = x -> (D .* (H * (D .* x))) + (C .* x)
-        D_inv = inv.(D)
+        D⁻¹ = inv.(D)
 
         step_accepted = false
         perform_steihaug = true
@@ -83,22 +85,22 @@ function trust_region_reflective(
         while !step_accepted
 
             # Compute potential step using Steihaug
-            P = y -> D_inv .* (H_inv_approx * (D_inv .* y)); # Preconditioner
-            z0 = zero(g_hat)
+            P = y -> D⁻¹ .* (H⁻¹_approx * (D⁻¹ .* y)); # Preconditioner
+            z0 = zero(ĝ)
             if perform_steihaug
 
-                @timeit to "Steihaug" steps = steihaug_store_steps(H_scaled, g_hat, delta, P, options.max_iter_steihaug, options.tol_steihaug, z0)
-                s_hat = steps[end]
+                @timeit to "Steihaug" steps = steihaug_store_steps(H_scaled, ĝ, Δ, P, options.max_iter_steihaug, options.tol_steihaug, z0)
+                ŝ = steps[end]
             else
-                s_hat = steps[sh_iter]
+                ŝ = steps[sh_iter]
             end
 
-            s = D .* s_hat
+            s = D .* ŝ
             # Select best step taking into account feasible region
             theta = max(0.995, 1 - norm(v .* g, Inf)) |> eltype(x)
             @info "Choose step"
 
-            @timeit to "Choose step" step, step_hat, step_value = choose_step(x, H_scaled, g_hat, s, s_hat, D, delta, theta, LB, UB)
+            @timeit to "Choose step" step, step_hat, step_value = choose_step(x, H_scaled, ĝ, s, ŝ, D, Δ, theta, LB, UB)
             @timeit to "x_new" x_new = clamp.(x + step, LB, UB)
 
             # Compute new objective
@@ -109,14 +111,14 @@ function trust_region_reflective(
             actual_reduction = f - f_new
 
             # Calculate ratio of actual to predicted reduction
-            ratio = _calculate_ratio(actual_reduction, g, H, s, s_hat, C, options.modified_reduction_for_ratio, to)
+            ratio = _calculate_ratio(actual_reduction, g, H, s, ŝ, C, options.modified_reduction_for_ratio, to)
 
             # Determine whether to accept the step
-            if (actual_reduction > 0 && ratio > 0.1) || delta < delta_limit
+            if (actual_reduction > 0 && ratio > 0.1) || Δ < Δ_limit
                 @info "    Step accepted"
                 step_accepted = true
 
-                @timeit to "Adjust delta" delta = adjust_trust_radius(ratio, s_hat, delta)
+                @timeit to "Adjust Δ" Δ = adjust_trust_radius(ratio, ŝ, Δ)
 
                 x = x_new
                 f = f_new
@@ -136,9 +138,9 @@ function trust_region_reflective(
                 sh_iter = length(steps)
 
                 while sh_iter >= length(steps)
-                    delta = delta / 2
-                    @info "   Trust radius reduced to: $(delta)"
-                    @timeit to "Find smaller step" sh_iter = findlast(norm.(steps) .<= delta)
+                    Δ = Δ / 2
+                    @info "   Trust radius reduced to: $(Δ)"
+                    @timeit to "Find smaller step" sh_iter = findlast(norm.(steps) .<= Δ)
 
                     if sh_iter === nothing
                         sh_iter = 1
