@@ -625,7 +625,7 @@ function compute_steepest_descent_step(
 
     # Determine maximum step length
     if to_feasible < to_trust
-        sd_steplength_max = to_feasible  # Don't apply theta here - apply after unscaling
+        sd_steplength_max = theta * to_feasible  # Apply theta to limit search range
     else
         sd_steplength_max = to_trust  # Limited by trust region
     end
@@ -638,12 +638,6 @@ function compute_steepest_descent_step(
     # Compute resulting step vectors
     step_hat = optimal_t * sd_hat
     step = D .* step_hat
-    
-    # Apply theta safety factor AFTER unscaling to preserve bounds safety
-    if to_feasible < to_trust
-        step = theta * step
-        step_hat = theta * step_hat
-    end
 
     return step, step_hat, step_value
 end
