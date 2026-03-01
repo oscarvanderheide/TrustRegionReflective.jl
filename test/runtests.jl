@@ -95,47 +95,43 @@ end
     using TrustRegionReflective: adjust_trust_radius
     using LinearAlgebra
 
-    # Test case 1: current_ratio < min_ratio
-    current_ratio = 0.2
+    # Test case 1: ratio < 0.25 -> shrink to 0.25 * norm(step)
+    current_ratio = 0.1
     step = [1.0, 2.0, 3.0]
     Δ = norm(step) * 2
-    min_ratio = 0.5
 
-    expected_Δ = (1 / 4) * Δ
-    actual_Δ = adjust_trust_radius(current_ratio, step, Δ, min_ratio)
+    expected_Δ = 0.25 * norm(step)
+    actual_Δ = adjust_trust_radius(current_ratio, step, Δ)
 
     @test expected_Δ ≈ actual_Δ
 
-    # Test case 2: current_ratio > 1/2 and norm(step) > 0.95 * Δ
+    # Test case 2: ratio > 0.75 and norm(step) > 0.95 * Δ -> double
     current_ratio = 0.8
     step = [1.0, 2.0, 3.0]
     Δ = norm(step) * 1.01
-    min_ratio = 0.5
 
     expected_Δ = 2 * Δ
-    actual_Δ = adjust_trust_radius(current_ratio, step, Δ, min_ratio)
+    actual_Δ = adjust_trust_radius(current_ratio, step, Δ)
 
     @test expected_Δ ≈ actual_Δ
 
-    # Test case 3: current_ratio > 1/2 but norm(step) <= 0.95 * Δ
+    # Test case 3: ratio > 0.75 but norm(step) <= 0.95 * Δ -> no change
     current_ratio = 0.8
     step = [1.0, 1.0, 1.0]
     Δ = 2 * norm(step)
-    min_ratio = 0.5
 
     expected_Δ = Δ
-    actual_Δ = adjust_trust_radius(current_ratio, step, Δ, min_ratio)
+    actual_Δ = adjust_trust_radius(current_ratio, step, Δ)
 
     @test expected_Δ ≈ actual_Δ
 
-    # Test case 4: min_ratio < current_ratio < 1/2
-    current_ratio = 0.4
+    # Test case 4: 0.25 < ratio < 0.75 -> no change
+    current_ratio = 0.5
     step = [1.0, 2.0, 3.0]
     Δ = norm(step) * 1.5
-    min_ratio = 0.1
 
     expected_Δ = Δ
-    actual_Δ = adjust_trust_radius(current_ratio, step, Δ, min_ratio)
+    actual_Δ = adjust_trust_radius(current_ratio, step, Δ)
 
     @test expected_Δ ≈ actual_Δ
 
@@ -143,43 +139,38 @@ end
     current_ratio = 0.6
     step = [1.0, 2.0, 3.0]
     Δ = 1.0
-    min_ratio = 0.5
 
-    expected_Δ = Δ
-    @test_throws ErrorException adjust_trust_radius(current_ratio, step, Δ, min_ratio)
+    @test_throws ErrorException adjust_trust_radius(current_ratio, step, Δ)
 
     # Test case 6: Float32 - no change
-    current_ratio = 0.6f0
+    current_ratio = 0.5f0
     step = Float32[1.0, 2.0, 3.0]
     Δ = 2 * norm(step)
-    min_ratio = 0.1f0
 
     expected_Δ = Δ
-    actual_Δ = adjust_trust_radius(current_ratio, step, Δ, min_ratio)
+    actual_Δ = adjust_trust_radius(current_ratio, step, Δ)
 
     @test typeof(actual_Δ) == typeof(expected_Δ)
     @test expected_Δ ≈ actual_Δ
 
-    # Test case 7: Float32 - reduce Δ
+    # Test case 7: Float32 - shrink to 0.25 * norm(step)
     current_ratio = 0.05f0
     step = Float32[1.0, 2.0, 3.0]
     Δ = 2 * norm(step)
-    min_ratio = 0.1f0
 
-    expected_Δ = Δ / 4
-    actual_Δ = adjust_trust_radius(current_ratio, step, Δ, min_ratio)
+    expected_Δ = Float32(0.25) * norm(step)
+    actual_Δ = adjust_trust_radius(current_ratio, step, Δ)
 
     @test typeof(actual_Δ) == typeof(expected_Δ)
     @test expected_Δ ≈ actual_Δ
 
-    # Test case 7: Float32 - reduce Δ
+    # Test case 8: Float32 - double
     current_ratio = 0.8f0
     step = Float32[1.0, 2.0, 3.0]
     Δ = 1.01f0 * norm(step)
-    min_ratio = 0.1f0
 
     expected_Δ = 2 * Δ
-    actual_Δ = adjust_trust_radius(current_ratio, step, Δ, min_ratio)
+    actual_Δ = adjust_trust_radius(current_ratio, step, Δ)
 
     @test typeof(actual_Δ) == typeof(expected_Δ)
     @test expected_Δ ≈ actual_Δ

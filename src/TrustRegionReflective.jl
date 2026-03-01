@@ -14,8 +14,6 @@ Configuration options for the Trust Region Reflective (TRF) solver.
 - `T<:Real`: The floating-point type for tolerances and ratios.
 
 # Fields
-- `min_ratio::T`: The minimum acceptable ratio of actual to predicted reduction. A step is a
-ccepted if the ratio is above this value. Typically between 0 and 0.25.
 - `max_iter_trf::Int`: The maximum number of iterations for the main Trust Region Reflective a
 lgorithm.
 - `max_iter_steihaug::Int`: The maximum number of iterations for the Steihaug-Toint conjugate 
@@ -30,7 +28,6 @@ applied to the norm of the initial `x0`.
 reduction for the ratio calculation that takes into account the coleman li scaling factors.
 """
 @kwdef struct TRFOptions{T<:Real}
-    min_ratio::T = 0.1
     max_iter_trf::Int = 20
     max_iter_steihaug::Int = 20
     tol_steihaug::T = 1E-6

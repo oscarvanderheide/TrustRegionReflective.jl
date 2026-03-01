@@ -150,18 +150,16 @@ end
         current_ratio::T,
         step::AbstractVector{T},
         Δ::T,
-        min_ratio::T
     ) where {T<:Real}
 
 Adjust the trust region radius based on the current ratio of actual reduction to predicted reduction in the cost.
 
-The function reduces the radius if the current ratio is "poor" in the sense that it is  less than `min_ratio`. It increases the radius if the current ratio is "good" in the sense that it is greater than 0.5 and the step is very close to the trust region boundary. In other situations, it keeps the radius as is.
+The function shrinks the radius to 0.25 * norm(step) if the ratio is below 0.25. It doubles the radius if the ratio is above 0.75 and the step is close to the trust region boundary. Otherwise keeps the radius unchanged. This matches the scipy update_tr_radius strategy.
 
 # Arguments
 - `current_ratio`: The current ratio of actual to predicted reduction.
 - `step`: The current step vector.
 - `Δ`: The current trust region radius.
-- `min_ratio`: The minimum acceptable ratio.
 
 # Returns
 - The adjusted trust region radius.
@@ -170,7 +168,6 @@ function adjust_trust_radius(
     current_ratio::T,
     step::AbstractVector{T},
     Δ::T,
-    min_ratio
 ) where {T<:Real}
 
     # @info "Norm of step: $(norm(step)), Trust Radius: $(Δ)"
@@ -181,18 +178,16 @@ function adjust_trust_radius(
         error("    adjust_trust_radius: Norm of step ($norm_step) is greater than trust radius ($(round(Δ, digits=2)))")
     end
 
-    if current_ratio < min_ratio # The trust region is too large. Reduce the radius.
-        # @info "Trust Radius too large"
-        Δ = Δ / 4
+    step_norm = norm(step)
 
-    elseif (current_ratio > 1 / 2) && (norm(step) > (T(0.95) * Δ))
+    if current_ratio < T(0.25) # The trust region is too large. Shrink to 1/4 of step norm.
+        Δ = T(0.25) * step_norm
 
+    elseif (current_ratio > T(0.75)) && (step_norm > (T(0.95) * Δ))
         # The trust region seems to be too small. Increase the radius.
-        # @info "Trust Radius too small"
         Δ = 2 * Δ
 
     else # The trust region seems to be fine. Keep the radius the same.
-        # @info "Trust Radius just fine"
     end
 
     return Δ

@@ -114,7 +114,7 @@ function trust_region_reflective(
                 @info "    Step accepted"
                 step_accepted = true
 
-                @timeit to "Adjust delta" delta = adjust_trust_radius(ratio, s_hat, delta, options.min_ratio)
+                @timeit to "Adjust delta" delta = adjust_trust_radius(ratio, s_hat, delta)
 
                 x = x_new
                 f = f_new
