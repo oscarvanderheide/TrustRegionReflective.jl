@@ -508,11 +508,11 @@ function compute_reflected_step(
         # Lower bound: slightly back from boundary
         rf_steplength_l = (one(T) - theta) * p_steplength / rf_steplength
 
-        # Upper bound: either trust region boundary or feasible region boundary
+        # Upper bound: apply theta to limit search range when hitting feasible boundary
         if rf_steplength == to_feasible
-            rf_steplength_u = to_feasible  # Don't apply theta here - apply after unscaling
+            rf_steplength_u = theta * to_feasible
         else
-            rf_steplength_u = to_trust  # Go to trust region boundary
+            rf_steplength_u = to_trust
         end
 
         # Check if reflection range is valid
@@ -525,12 +525,6 @@ function compute_reflected_step(
             # Compute resulting step vectors
             rf_hat_result = boundary_step_hat + optimal_t * rf_hat
             rf_result = D .* rf_hat_result
-            
-            # Apply theta safety factor AFTER unscaling if we hit feasible boundary
-            if rf_steplength == to_feasible
-                rf_result = theta * rf_result
-                rf_hat_result = theta * rf_hat_result
-            end
         end
     else
         @debug "Reflection step invalid: rf_steplength = $rf_steplength"
