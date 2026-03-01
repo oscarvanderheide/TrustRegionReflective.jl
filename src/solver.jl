@@ -42,6 +42,7 @@ function trust_region_reflective(
 
         @info "ITERATION #$(iter)"
 
+        H⁻¹_approx = H_inv_approx
         if iter > 1
             @info "    Calling f,r,g,H, H_inv_approx = objective(x,'frgH')"
             @timeit to "Objective (frgH)" f, r, g, H, H_inv_approx = objective(x, "frgH")
@@ -97,7 +98,7 @@ function trust_region_reflective(
             @info "Choose step"
 
             @timeit to "Choose step" step, step_hat, step_value = choose_step(x, H_scaled, g_hat, s, s_hat, D, delta, theta, LB, UB)
-            @timeit to "x_new" x_new = x + step
+            @timeit to "x_new" x_new = clamp.(x + step, LB, UB)
 
             # Compute new objective
             @info "    Calling f,r = objective(x_new,'fr')"

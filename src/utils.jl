@@ -346,10 +346,9 @@ function minimize_quadratic_1d(a::T, b::T, lb::T, ub::T, c::T) where {T<:Real}
     y = @. a * t^2 + b * t + c
 
     # Find the minimum function value and the corresponding value of t
-    minval = minimum(y)
-    argument = t[findfirst(y .== minval)]
-
-    return argument, minval
+    # Use argmin which handles NaN correctly (NaN != NaN breaks findfirst)
+    idx = argmin(y)
+    return t[idx], y[idx]
 end
 
 """
