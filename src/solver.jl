@@ -51,18 +51,19 @@ function trust_region_reflective(
         @info "    f: $(f)"
         @info "    delta: $(delta)"
 
-        # Check for convergence based on gradient norm and function value
-        g_norm = norm(g)
+        @timeit to "CL scaling" v, dv = coleman_li_scaling_factors(x, g, LB, UB)
+
+        # Check for convergence using the scaled gradient norm (matching scipy).
+        # The Coleman-Li scaling v zeros out gradient components at active bounds,
+        # correctly detecting convergence at constrained optima.
+        g_norm = norm(v .* g, Inf)
         tol = options.tol_convergence
 
-        # For least squares problems, check if we're close enough to the minimum
         if (g_norm < tol) || (iter > 1 && abs(state.f[end-1] - f) < tol * max(1.0, abs(f)))
-            @info "Convergence achieved: gradient norm $(g_norm) or function change below tolerance"
+            @info "Convergence achieved: scaled gradient norm $(g_norm) or function change below tolerance"
             converged = true
             break
         end
-
-        @timeit to "CL scaling" v, dv = coleman_li_scaling_factors(x, g, LB, UB)
 
         # Make scaling operator and scale gradient and Hessian
         @timeit to "D" D = sqrt.(v)
