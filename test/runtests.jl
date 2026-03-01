@@ -5,7 +5,6 @@ using CUDA
 using Random
 using TimerOutputs
 using LinearMaps
-
 @testset "stepsize_to_bound_feasible_region tests" begin
 
     using TrustRegionReflective: stepsize_to_bound_feasible_region
@@ -836,7 +835,8 @@ end
 
     is_feasible, step, step_hat, step_value = compute_newton_step(x, gn, gn_hat, ĝ, Ĥ, LB, UB)
     @test is_feasible == false
-    @test step === nothing
+    @test step == zero(gn)
+    @test step_value == Inf
 
     # Test case 3: Float32 inputs
     x = Float32[1.0, 1.0]

@@ -429,18 +429,19 @@ function compute_newton_step(
     x::AbstractVector{T},
     gn::AbstractVector{T},
     gn_hat::AbstractVector{T},
-    ĝ::AbstractVector{T},
-    Ĥ,
+    g_hat::AbstractVector{T},
+    H_hat,
     LB::AbstractVector{T},
     UB::AbstractVector{T}
 ) where {T<:Real}
     if all_within_bounds(x + gn, LB, UB)
-        step_value = evaluate_quadratic(Ĥ, ĝ, gn_hat)
+        step_value = evaluate_quadratic(H_hat, g_hat, gn_hat)
         @debug "Full Inexact Newton step is feasible"
         return true, gn, gn_hat, step_value
     end
-    return false, nothing, nothing, nothing
+    return false, zero(gn), zero(gn_hat), convert(T, Inf)
 end
+
 
 """
     compute_reflected_step(x, gn, gn_hat, ĝ, Ĥ, D, trust_radius, theta, LB, UB)
