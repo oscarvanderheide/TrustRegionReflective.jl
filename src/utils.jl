@@ -231,15 +231,16 @@ function coleman_li_scaling_factors(x::T, g::T, LB::T, UB::T) where {T<:Abstract
     v = similar(x)
     v .= 1
 
-    # Mask that selects parameters for which -g is positive and which have upper bounds
-    mask⁺ = (-g .>= 0) .& (UB .< Inf)
+    # Mask that selects parameters for which g is negative (step towards upper bound)
+    # Use strict inequality so that g=0 keeps v=1 (matching scipy)
+    mask⁺ = (g .< 0) .& (UB .< Inf)
     # g and UB are ComponentVectors, having mask as ComponentVector gives issues for some reason so we convert it to a regular vector with `parent`
     mask⁺ = parent(mask⁺)
     # Set scaling factors to the distance to the upper bound for these parameters
     v[mask⁺] = UB[mask⁺] - x[mask⁺]
 
-    # Mask that selects parameters for which -g is negative and which have lower bounds
-    mask⁻ = (-g .<= 0) .& (LB .> -Inf)
+    # Mask that selects parameters for which g is positive (step towards lower bound)
+    mask⁻ = (g .> 0) .& (LB .> -Inf)
     # g and LB are ComponentVectors, having mask as ComponentVector gives issues for some reason so we convert it to a regular vector with `parent`
     mask⁻ = parent(mask⁻)
     # Set scaling factors to the distance to the lower bound for these parameters
