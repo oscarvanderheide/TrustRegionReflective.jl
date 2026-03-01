@@ -26,7 +26,7 @@ he norm of the residual is below this tolerance.
 applied to the norm of the initial `x0`.
 - `save_every_iter::Bool`: A boolean flag indicating whether to save intermediate results (e.g.
 , `x`, `f`, `r`) at each iteration. This can be memory-intensive.
-- `modfified_reduction_for_ratio::Bool`: A boolean flag indicating whether to use a modified
+- `modified_reduction_for_ratio::Bool`: A boolean flag indicating whether to use a modified
 reduction for the ratio calculation that takes into account the coleman li scaling factors.
 """
 @kwdef struct TRFOptions{T<:Real}
@@ -37,7 +37,7 @@ reduction for the ratio calculation that takes into account the coleman li scali
     tol_convergence::T = 1E-6
     init_scale_radius::T = 0.1
     save_every_iter::Bool = false
-    modfified_reduction_for_ratio::Bool = false
+    modified_reduction_for_ratio::Bool = false
 end
 
 """

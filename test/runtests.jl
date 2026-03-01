@@ -599,9 +599,9 @@ end
     s1 = [1.0, 2.0]
     ŝ1 = [1.0, 2.0]  # Same as s for simplicity
     C1 = [1.0, 1.0]
-    modfified_reduction_for_ratio1 = false
+    modified_reduction_for_ratio1 = false
 
-    ratio1 = _calculate_ratio(actual_reduction1, g1, H1, s1, ŝ1, C1, modfified_reduction_for_ratio1, to)
+    ratio1 = _calculate_ratio(actual_reduction1, g1, H1, s1, ŝ1, C1, modified_reduction_for_ratio1, to)
 
     # predicted_reduction = -((g' * s) + (1/2) * s' * (H * s))
     # = -([2,3] * [1,2] + (1/2) * [1,2] * [1,2])
@@ -618,9 +618,9 @@ end
     s2 = [1.0, 1.0]
     ŝ2 = [2.0, 2.0]  # Scaled version
     C2 = [0.5, 0.5]  # Scaling vector
-    modfified_reduction_for_ratio2 = true
+    modified_reduction_for_ratio2 = true
 
-    ratio2 = _calculate_ratio(actual_reduction2, g2, H2, s2, ŝ2, C2, modfified_reduction_for_ratio2, to)
+    ratio2 = _calculate_ratio(actual_reduction2, g2, H2, s2, ŝ2, C2, modified_reduction_for_ratio2, to)
 
     # predicted_reduction = -([1,1] * [1,1] + (1/2) * [1,1] * [2,2]) = -(2 + 2) = -4
     # modified_reduction = actual_reduction - (1/2) * ŝ' * (C .* ŝ)
@@ -639,9 +639,9 @@ end
     s3 = [1.0, 1.0]
     ŝ3 = [1.0, 1.0]
     C3 = [1.0, 1.0]
-    modfified_reduction_for_ratio3 = false
+    modified_reduction_for_ratio3 = false
 
-    ratio3 = _calculate_ratio(actual_reduction3, g3, H3, s3, ŝ3, C3, modfified_reduction_for_ratio3, to)
+    ratio3 = _calculate_ratio(actual_reduction3, g3, H3, s3, ŝ3, C3, modified_reduction_for_ratio3, to)
 
     # predicted_reduction = 0, so ratio = Inf
     @test isinf(ratio3)
@@ -653,9 +653,9 @@ end
     s4 = Float32[1.0, 1.0]
     ŝ4 = Float32[1.0, 1.0]
     C4 = Float32[1.0, 1.0]
-    modfified_reduction_for_ratio4 = false
+    modified_reduction_for_ratio4 = false
 
-    ratio4 = _calculate_ratio(actual_reduction4, g4, H4, s4, ŝ4, C4, modfified_reduction_for_ratio4, to)
+    ratio4 = _calculate_ratio(actual_reduction4, g4, H4, s4, ŝ4, C4, modified_reduction_for_ratio4, to)
 
     @test ratio4 isa AbstractFloat
     # predicted_reduction = -([1,2] * [1,1] + (1/2) * [1,1] * [1,1]) = -(3 + 1) = -4
@@ -670,9 +670,9 @@ end
         s5 = CuArray([2.0, 1.0])
         ŝ5 = CuArray([2.0, 1.0])
         C5 = CuArray([1.0, 1.0])
-        modfified_reduction_for_ratio5 = false
+        modified_reduction_for_ratio5 = false
 
-        ratio5 = _calculate_ratio(actual_reduction5, g5, H5, s5, ŝ5, C5, modfified_reduction_for_ratio5, to)
+        ratio5 = _calculate_ratio(actual_reduction5, g5, H5, s5, ŝ5, C5, modified_reduction_for_ratio5, to)
 
         @test ratio5 isa Real
         # predicted_reduction = -([1,1] * [2,1] + (1/2) * [2,1] * [2,1]) = -(3 + 2.5) = -5.5
@@ -689,9 +689,9 @@ end
     s6 = [1.0, 0.0]
     ŝ6 = [1.0, 0.0]
     C6 = [1.0, 1.0]
-    modfified_reduction_for_ratio6 = false
+    modified_reduction_for_ratio6 = false
 
-    ratio6 = _calculate_ratio(actual_reduction6, g6, H6, s6, ŝ6, C6, modfified_reduction_for_ratio6, to)
+    ratio6 = _calculate_ratio(actual_reduction6, g6, H6, s6, ŝ6, C6, modified_reduction_for_ratio6, to)
 
     # predicted_reduction = -([1,0] * [1,0] + (1/2) * [1,0] * [1,0]) = -(1 + 0.5) = -1.5
     # ratio = (-2.0) / (-1.5) ≈ 1.333
