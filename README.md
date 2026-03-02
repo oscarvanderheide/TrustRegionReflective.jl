@@ -2,8 +2,6 @@
 
 A Julia implementation of the Trust Region Reflective algorithm for solving bound-constrained nonlinear least-squares problems. 
 
-This code used to be part of a larger codebase. It is now a separate package but has not been tested outside of the scope of the larger codebase. Use at your own risk.
-
 ## Features
 - Implements the Trust Region Reflective algorithm.
 - Supports bound constraints on variables.
