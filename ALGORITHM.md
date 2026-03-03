@@ -170,7 +170,7 @@ The scaling factors from Coleman-Li are important here: at a constrained optimum
 end
 ```
 
-`max_iter_steihaug` controls how accurately the subproblem is solved. Higher = more accurate but slower per iteration. For most MRI fitting, 20 is plenty.
+`max_iter_steihaug` controls how accurately the subproblem is solved. Higher = more accurate but slower per iteration. 
 
 `init_scale_radius` sets the initial trust region as a fraction of the starting point's magnitude. If your initial guess is far from the solution, a smaller value (e.g., 0.01) makes the first steps more cautious.
 
@@ -236,7 +236,9 @@ The scaled Hessian operator is `H_scaled(x) = D .* (H * (D .* x)) + C .* x`. It 
 
 1. **The similarity transform** $D \cdot H \cdot D$: this is the straightforward scaling of the Hessian into the new coordinate system defined by $D$.
 
-2. **The Coleman-Li correction** $C \cdot x$: this term exists because $D$ itself depends on the current parameter values $x$ (recall $D = \sqrt{v}$ where $v$ measures distance to bounds). When we take a step, $D$ would change — but we're treating it as constant within one iteration. The correction term compensates for this. Mathematically, when you differentiate the scaled gradient $\hat{g} = D(x) \cdot g(x)$ with respect to $x$, the product rule gives you an extra term involving $\frac{\partial D}{\partial x}$. That extra term simplifies to $dv \cdot g = C$, applied elementwise. Without this correction, the quadratic model would be inconsistent with the scaling, leading to poor step predictions especially near bounds where $D$ changes rapidly.
+2. **The Coleman-Li correction** $C \cdot x$: this term exists because of a chicken-and-egg problem. The scaling $D$ depends on the current point $x$ (recall $D = \sqrt{v}$ where $v$ measures distance to bounds). Ideally, after taking a step $s$, we'd want the scaling at the new point $D(x+s)$. But we can't compute $D(x+s)$ because **we don't know $s$ yet** — finding $s$ is exactly what the subproblem is solving for! And if we made $D$ depend on $s$, the subproblem would become nonlinear and we could no longer use CG to solve it.
+
+    The solution is to use $D(x)$ (computed at the current point) but add a **first-order Taylor correction** that approximates how $D$ would change as we step. Mathematically, when you differentiate the scaled gradient $\hat{g} = D(x) \cdot g(x)$ with respect to $x$, the product rule gives an extra term involving $\frac{\partial D}{\partial x}$. That extra term simplifies to $dv \cdot g = C$, applied elementwise to the step. This keeps the subproblem quadratic (solvable by CG) while accounting for the fact that the scaling changes as we move — which matters most near bounds where $D$ changes rapidly with $x$.
 
 **Step 4: Solve subproblem with Steihaug CG**
 
