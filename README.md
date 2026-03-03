@@ -1,11 +1,11 @@
 # TrustRegionReflective.jl
 
-A Julia implementation of the Trust Region Reflective algorithm for solving bound-constrained nonlinear least-squares problems. 
+A Julia implementation of the Trust Region Reflective algorithm for solving bound-constrained nonlinear least-squares problems. See [Algorithm](ALGORITHM.md) for a multi-level explanation of the algorithm.
 
 ## Features
 - Implements the Trust Region Reflective algorithm.
 - Supports bound constraints on variables.
-- All the functions are - I think - type stable - which allows the solver to be used with, for example, `CuArrays` from the `CUDA.jl`.
+- All the functions are type stable - which allows the solver to be used with, for example, `CuArrays` from the `CUDA.jl`.
 - Ideally this solver becomes part of, say, [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl). I don't have time myself to make this happen though.
 
 ## Acknowledgments
