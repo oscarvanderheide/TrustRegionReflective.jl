@@ -132,11 +132,21 @@ function positive_stepsize_to_bound_trust_region(x::V, p::V, trust_radius::T) wh
 
     # Coefficients for the quadratic equation
     a = norm(p)^2
+
+    # Guard: if p is (near-)zero, no step can reach the trust boundary
+    if a < eps(T)
+        return convert(T, Inf)
+    end
+
     b = 2 * dot(x, p)
     c = norm(x)^2 - trust_radius^2
 
+    # Guard: clamp discriminant to avoid sqrt of tiny negative from float error
+    disc = b^2 - 4 * a * c
+    disc = max(disc, zero(T))
+
     # Solve the quadratic equation for τ using the quadratic formula
-    τ = (-b + sqrt(b^2 - 4 * a * c)) / (2 * a)
+    τ = (-b + sqrt(disc)) / (2 * a)
 
     if τ < 0
         error("    positive_stepsize_to_bound_trust_region: Negative stepsize encountered")
@@ -181,7 +191,7 @@ function adjust_trust_radius(
     step_norm = norm(step)
 
     if current_ratio < T(0.25) # The trust region is too large. Shrink to 1/4 of step norm.
-        Δ = T(0.25) * step_norm
+        Δ = max(T(0.25) * step_norm, eps(T))
 
     elseif (current_ratio > T(0.75)) && (step_norm > (T(0.95) * Δ))
         # The trust region seems to be too small. Increase the radius.
@@ -388,19 +398,30 @@ function stepsizes_to_bound_trust_region(x::V, s::V, trust_radius::T) where {V<:
     end
 
     # Root from one fourth of the discriminant.
-    d = sqrt(b * b - a * c)
+    disc = b * b - a * c
+    # Clamp to zero to guard against tiny negative values from floating-point error
+    d = sqrt(max(disc, zero(disc)))
 
     # Computations below avoid loss of significance, see "Numerical Recipes".
     q = -(b + abs(d) * sign(b))
-    t¹ = q / a
-    t² = c / q
 
-    if t¹ < t²
-        t⁻ = t¹
-        t⁺ = t²
+    # Guard against q = 0 (happens when b = 0 and x is on trust boundary).
+    # Fall back to the standard quadratic formula in that case.
+    if abs(q) < eps(T) * (abs(b) + abs(d) + one(T))
+        # Standard formula: t = (-b ± d) / a
+        t⁻ = (-b - d) / a
+        t⁺ = (-b + d) / a
     else
-        t⁻ = t²
-        t⁺ = t¹
+        t¹ = q / a
+        t² = c / q
+
+        if t¹ < t²
+            t⁻ = t¹
+            t⁺ = t²
+        else
+            t⁻ = t²
+            t⁺ = t¹
+        end
     end
 
     return t⁻, t⁺
@@ -746,9 +767,17 @@ function _calculate_ratio(actual_reduction, g, H, s, ŝ, C, modified_reduction_
 
     if modified_reduction_for_ratio
         @timeit to "Modify reduction" modified_reduction = actual_reduction - ((1 // 2) * ŝ' * (C .* ŝ))
-        ratio = modified_reduction / predicted_reduction
+        numerator = modified_reduction
     else
-        ratio = actual_reduction / predicted_reduction
+        numerator = actual_reduction
+    end
+
+    # Guard against 0/0 which produces NaN. When both numerator and predicted
+    # reduction are zero the step made no change — treat as perfect agreement.
+    if predicted_reduction == 0 && numerator == 0
+        ratio = one(eltype(s))
+    else
+        ratio = numerator / predicted_reduction
     end
 
     return ratio

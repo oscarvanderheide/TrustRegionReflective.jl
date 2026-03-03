@@ -74,7 +74,9 @@ function trust_region_reflective(
         # Always include the Coleman-Li derivative term (C .* x) in the scaled Hessian,
         # as it regularizes the quadratic model to account for the nonlinear scaling.
         H_scaled = x -> (D .* (H * (D .* x))) + (C .* x)
-        D⁻¹ = inv.(D)
+        # Safe inverse: when D[i]=0 (variable frozen at bound), set D⁻¹[i]=0 so the
+        # preconditioner zeroes out that component instead of producing Inf*0=NaN.
+        D⁻¹ = map(d -> d == zero(d) ? zero(d) : inv(d), D)
 
         step_accepted = false
         perform_steihaug = true
@@ -97,7 +99,10 @@ function trust_region_reflective(
 
             s = D .* ŝ
             # Select best step taking into account feasible region
-            theta = max(0.995, 1 - norm(v .* g, Inf)) |> eltype(x)
+            # Guard against NaN: if v.*g contains NaN, norm returns NaN and
+            # max(0.995, NaN) returns NaN in Julia, poisoning all downstream steps.
+            vg_norm = norm(v .* g, Inf)
+            theta = (isnan(vg_norm) ? 0.995 : max(0.995, 1 - vg_norm)) |> eltype(x)
             @info "Choose step"
 
             @timeit to "Choose step" step, step_hat, step_value = choose_step(x, H_scaled, ĝ, s, ŝ, D, Δ, theta, LB, UB)
@@ -114,7 +119,10 @@ function trust_region_reflective(
             ratio = _calculate_ratio(actual_reduction, g, H, s, ŝ, C, options.modified_reduction_for_ratio, to)
 
             # Determine whether to accept the step
-            if (actual_reduction > 0 && ratio > 0.1) || Δ < Δ_limit
+            # Guard: never accept a step that produced NaN in the objective,
+            # even if Δ < Δ_limit (the force-accept safety net).
+            step_has_nan = isnan(f_new) || any(isnan, x_new)
+            if !step_has_nan && ((actual_reduction > 0 && ratio > 0.1) || Δ < Δ_limit)
                 @info "    Step accepted"
                 step_accepted = true
 

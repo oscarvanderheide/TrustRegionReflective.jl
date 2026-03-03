@@ -166,13 +166,14 @@ function steihaug_store_steps(H, g, Δ, P, maxit, tol, z0)
     if norm(r) < tol
         @info "        Nothing to gain, residual is already small enough from the start"
         push!(steps, z)
+        return steps
     end
 
     iter = 1
 
     while iter <= maxit
 
-        
+
         # @info "        Iteration $(iter) of inner loop, current CG-residual: $(norm(r))"
         Hd = H(d)
         dHd = d' * Hd
@@ -207,7 +208,15 @@ function steihaug_store_steps(H, g, Δ, P, maxit, tol, z0)
         end
 
         Y_new = P(r_new)
-        β = (Y_new' * r_new) / (Y' * r)
+        # Guard against division by zero: when Y'*r ≈ 0 the CG β blows up.
+        # This can happen when the preconditioner maps the residual to near-zero.
+        Yr = Y' * r
+        if abs(Yr) < eps(eltype(g))
+            @info "        Steihaug-CG: Y'*r ≈ 0, terminating to avoid NaN in β"
+            push!(steps, z_new)
+            break
+        end
+        β = (Y_new' * r_new) / Yr
         d_new = -Y_new + β * d
 
         # Prepare for next iteration
