@@ -194,7 +194,7 @@ The user-provided `objective` function is called with mode `"frgH"` to get:
 
 The initial trust radius is:
 
-$$\Delta = \text{init\_scale\_radius} \times \|x_0\|$$
+$$\Delta = \text{init scale radius} \times \|x_0\|$$
 
 If $x_0 = 0$, it falls back to $\sqrt{n}$ where $n$ is the number of parameters.
 
