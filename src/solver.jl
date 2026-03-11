@@ -14,6 +14,11 @@ function trust_region_reflective(
     @info "    Calling f,r,g,H, H⁻¹_approx = objective(x,'frgH')"
     @timeit to "frgH" f, r, g, H, H⁻¹_approx = objective(x, "frgH")
 
+    if f == zero(T)
+        @info "    f == 0 at initial point; returning x0 unchanged"
+        return x0
+    end
+
     # Set initial trust radius
     Δ = norm(x)
     if Δ == zero(T)
@@ -61,9 +66,11 @@ function trust_region_reflective(
 
         if (g_norm < tol) || (iter > 1 && abs(state.f[end-1] - f) < tol * max(1.0, abs(f)))
             @info "Convergence achieved: scaled gradient norm $(g_norm) or function change below tolerance"
-            converged = true
-            break
+            @info "Continuing nonetheless"
+            # converged = true
+        #     break
         end
+
 
 
 
