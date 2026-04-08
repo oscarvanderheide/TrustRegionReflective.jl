@@ -66,9 +66,8 @@ function trust_region_reflective(
 
         if (g_norm < tol) || (iter > 1 && abs(state.f[end-1] - f) < tol * max(1.0, abs(f)))
             @info "Convergence achieved: scaled gradient norm $(g_norm) or function change below tolerance"
-            @info "Continuing nonetheless"
-            # converged = true
-        #     break
+            converged = true
+            break
         end
 
 
@@ -85,20 +84,26 @@ function trust_region_reflective(
         # preconditioner zeroes out that component instead of producing Inf*0=NaN.
         D⁻¹ = map(d -> d == zero(d) ? zero(d) : inv(d), D)
 
+        # Preconditioner: defined once per outer iteration; D⁻¹ and H⁻¹_approx are
+        # constant across inner acceptance retries, so no need to recreate the closure.
+        P = y -> D⁻¹ .* (H⁻¹_approx * (D⁻¹ .* y))
+
         step_accepted = false
         perform_steihaug = true
         sh_iter = -1
 
-        steps = nothing
+        # Initialise with a concrete type to avoid Union{Nothing, Vector{...}} inference
+        # inside the inner loop. The type matches the return value of steihaug_store_steps.
+        steps = Vector{typeof(ĝ)}()
+        step_norms = Vector{eltype(ĝ)}()
 
         while !step_accepted
 
             # Compute potential step using Steihaug
-            P = y -> D⁻¹ .* (H⁻¹_approx * (D⁻¹ .* y)); # Preconditioner
-            z0 = zero(ĝ)
+            z0 = zero(ĝ)
             if perform_steihaug
 
-                @timeit to "Steihaug" steps = steihaug_store_steps(H_scaled, ĝ, Δ, P, options.max_iter_steihaug, options.tol_steihaug, z0)
+                @timeit to "Steihaug" steps, step_norms = steihaug_store_steps(H_scaled, ĝ, Δ, P, options.max_iter_steihaug, options.tol_steihaug, z0)
                 ŝ = steps[end]
             else
                 ŝ = steps[sh_iter]
@@ -155,7 +160,7 @@ function trust_region_reflective(
                 while sh_iter >= length(steps)
                     Δ = Δ / 2
                     @info "   Trust radius reduced to: $(Δ)"
-                    @timeit to "Find smaller step" sh_iter = findlast(norm.(steps) .<= Δ)
+                    @timeit to "Find smaller step" sh_iter = findlast(step_norms .<= Δ)
 
                     if sh_iter === nothing
                         sh_iter = 1

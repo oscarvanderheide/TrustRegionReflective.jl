@@ -81,7 +81,7 @@ function stepsize_to_bound_feasible_region(x::T, s::T, LB::T, UB::T) where {T<:A
 
     # Special case: if s is all zeros, return Inf (no movement needed to reach boundary)
     if all(s .== 0)
-        boundary_hit = falses(size(s))
+        boundary_hit = parent(s .!= s)  # all-false mask matching s's array type
         return convert(eltype(x), Inf), boundary_hit
     end
 

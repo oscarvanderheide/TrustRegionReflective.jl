@@ -85,8 +85,9 @@ const TRF = TrustRegionReflective
         @testset "steihaug_store_steps" begin
             P = identity
             z0 = zero(g)
-            result = @inferred TRF.steihaug_store_steps(H, g, trust_radius, P, 10, T(1e-6), z0)
-            @test eltype(result) == Vector{T}
+            steps, step_norms = @inferred TRF.steihaug_store_steps(H, g, trust_radius, P, 10, T(1e-6), z0)
+            @test eltype(steps) == Vector{T}
+            @test eltype(step_norms) == T
         end
 
         @testset "compute_newton_step" begin
@@ -193,8 +194,9 @@ const TRF = TrustRegionReflective
 
             @testset "steihaug_store_steps" begin
                 z0 = CUDA.zeros(T, n_cu)
-                result = @inferred TRF.steihaug_store_steps(H, g, trust_radius, identity, 10, T(1e-6), z0)
-                @test first(result) isa CuArray{T}
+                steps, step_norms = @inferred TRF.steihaug_store_steps(H, g, trust_radius, identity, 10, T(1e-6), z0)
+                @test first(steps) isa CuArray{T}
+                @test eltype(step_norms) == T
             end
         end
     else

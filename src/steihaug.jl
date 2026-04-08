@@ -159,14 +159,17 @@ function steihaug_store_steps(H, g, Δ, P, maxit, tol, z0)
     Y = P(r)
     d = -Y
 
-    # initialize empty array to store Steihaug steps
+    # initialize empty arrays to store Steihaug steps and their precomputed norms
     steps = typeof(g)[]
-    sizehint!(steps, maxit * length(d))
+    step_norms = eltype(g)[]
+    sizehint!(steps, maxit)
+    sizehint!(step_norms, maxit)
 
     if norm(r) < tol
         @info "        Nothing to gain, residual is already small enough from the start"
         push!(steps, z)
-        return steps
+        push!(step_norms, zero(eltype(g)))
+        return steps, step_norms
     end
 
     iter = 1
@@ -184,17 +187,22 @@ function steihaug_store_steps(H, g, Δ, P, maxit, tol, z0)
         if dHd < ϵ
             @info "        Direction of negative curvature encountered: should not occur because of Gauss-Newton method?"
             τ = positive_stepsize_to_bound_trust_region(z, d, Δ)
-            push!(steps, z + τ * d)
+            step = z + τ * d
+            push!(steps, step)
+            push!(step_norms, norm(step))
             break
         end
 
         α = (r' * Y) / dHd
         z_new = z + α * d
+        norm_z_new = norm(z_new)
 
-        if norm(z_new) > Δ
+        if norm_z_new > Δ
             @info "        Fell out of trust radius after iteration $(iter)"
             τ = positive_stepsize_to_bound_trust_region(z, d, Δ)
-            push!(steps, z + τ * d)
+            step = z + τ * d
+            push!(steps, step)
+            push!(step_norms, norm(step))
             break
         end
 
@@ -204,6 +212,7 @@ function steihaug_store_steps(H, g, Δ, P, maxit, tol, z0)
         if norm_r_new < tol
             @info "        Steihaug-CG converged with CG-residual = $(norm_r_new) after iteration $(iter)"
             push!(steps, z_new)
+            push!(step_norms, norm_z_new)
             break
         end
 
@@ -214,6 +223,7 @@ function steihaug_store_steps(H, g, Δ, P, maxit, tol, z0)
         if abs(Yr) < eps(eltype(g))
             @info "        Steihaug-CG: Y'*r ≈ 0, terminating to avoid NaN in β"
             push!(steps, z_new)
+            push!(step_norms, norm_z_new)
             break
         end
         β = (Y_new' * r_new) / Yr
@@ -228,12 +238,14 @@ function steihaug_store_steps(H, g, Δ, P, maxit, tol, z0)
         if iter == maxit
             @info "        Steihaug-CG failed to converge, CG-residual = $(norm_r_new)"
             push!(steps, z_new)
+            push!(step_norms, norm_z_new)
             break
         else
             iter = iter + 1
             push!(steps, z_new)
+            push!(step_norms, norm_z_new)
         end
     end
 
-    return steps
+    return steps, step_norms
 end
