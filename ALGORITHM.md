@@ -190,7 +190,7 @@ The user-provided `objective` function is called with mode `"frgH"` to get:
 - `r`: residual vector
 - `g`: gradient vector
 - `H`: Hessian operator (a function that computes $H \cdot v$ for any vector $v$, rather than storing the full matrix — critical for large problems)
-- `H⁻¹_approx`: an approximate inverse Hessian, used as a **preconditioner** for the CG solver
+- `H⁻¹_approx`: either `nothing` for no preconditioner, or an original-space approximate inverse Hessian used to build the CG preconditioner
 
 The initial trust radius is:
 
@@ -229,7 +229,6 @@ D = sqrt.(v)                           # Scaling factors
 ĝ = D .* g                             # Scaled gradient
 C = dv .* g                            # Coleman-Li derivative correction
 H_scaled = x -> (D .* (H * (D .* x))) + (C .* x)   # Scaled Hessian operator
-D⁻¹ = map(d -> d == 0 ? 0 : inv(d), D)             # Safe inverse (0→0, not 0→Inf)
 ```
 
 The scaled Hessian operator is `H_scaled(x) = D .* (H * (D .* x)) + C .* x`. It has two parts:
@@ -247,13 +246,20 @@ The subproblem $\min_{\hat{s}} \hat{g}^T \hat{s} + \frac{1}{2} \hat{s}^T \hat{H}
 Critically, Steihaug CG only uses **matrix-vector products** with the Hessian (i.e., computing $\hat{H} \cdot v$ for vectors $v$). It never needs to store, factorize, or invert the Hessian matrix. This is what makes the algorithm suitable for large-scale problems where the Hessian is too large to fit in memory. See the detailed description of Steihaug in the section below.
 
 ```julia
-P = y -> D⁻¹ .* (H⁻¹_approx * (D⁻¹ .* y))   # Preconditioner
+P = build_steihaug_preconditioner(H⁻¹_approx, D)
 steps = steihaug_store_steps(H_scaled, ĝ, Δ, P, ...)
 ŝ = steps[end]                                   # Best step in scaled space
 s = D .* ŝ                                        # Unscale back to original space
 ```
 
-If you have domain knowledge that lets you build a cheap approximation to the inverse Hessian (e.g., a diagonal approximation of $(J^T J)^{-1}$ based on known parameter sensitivities), you can supply it as `H⁻¹_approx` and it will be used as a **preconditioner** `P` for the CG iterations. This can speed up convergence of the inner loop. If no good approximation is available, the identity can be used (i.e., no preconditioning).
+If you have domain knowledge that lets you build a cheap approximation to the original-space inverse Hessian (e.g., a diagonal approximation of $(J^T J)^{-1}$ based on known parameter sensitivities), you can supply it as `H⁻¹_approx` and it will be transformed into the scaled-space **preconditioner** `P` for the CG iterations:
+
+```julia
+D⁻¹ = map(d -> d == 0 ? 0 : inv(d), D)
+P = y -> D⁻¹ .* (H⁻¹_approx * (D⁻¹ .* y))
+```
+
+If no good approximation is available, return `nothing` for `H⁻¹_approx`. The solver then uses `P = identity`, i.e. no preconditioning. Returning an identity `LinearMap` is not the same as no preconditioning under the original-space contract; it produces the scaled preconditioner `D⁻²`.
 
 All intermediate CG steps are stored. If the step is rejected later, the algorithm can backtrack to a shorter intermediate step instead of re-running CG from scratch.
 
@@ -315,7 +321,7 @@ For each iteration:
     10. Store z_new as an intermediate step
 ```
 
-If you have a cheap approximation to $\hat{H}^{-1}$ (see Step 4 in the main solver description above), it is used as the **preconditioner** $P$. This transforms the problem so the CG iteration sees a better-conditioned system and may converge in fewer iterations. If no good approximation is available, $P$ can simply be the identity (no preconditioning), and CG will still work — it may just take more iterations.
+If you have a cheap approximation to the original-space inverse Hessian (see Step 4 in the main solver description above), it is transformed into a scaled-space **preconditioner** $P$. This helps CG see a better-conditioned system and may reduce inner iterations. If no good approximation is available, return `nothing` from the objective and the solver uses `P = identity`.
 
 Every intermediate step is stored, so if the outer loop later decides the final step was too aggressive, it can pick an earlier, shorter step without re-solving.
 

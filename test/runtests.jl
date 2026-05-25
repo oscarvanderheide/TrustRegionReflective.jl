@@ -60,6 +60,22 @@ using LinearMaps
 
 end
 
+@testset "build_steihaug_preconditioner tests" begin
+
+    using TrustRegionReflective: build_steihaug_preconditioner
+
+    y = [2.0, 4.0]
+    D = [2.0, 4.0]
+
+    P_none = build_steihaug_preconditioner(nothing, D)
+    @test P_none(y) == y
+
+    H⁻¹_approx = LinearMap(x -> x, 2, 2)
+    P_scaled = build_steihaug_preconditioner(H⁻¹_approx, D)
+    @test P_scaled(y) ≈ [0.5, 0.25]
+
+end
+
 @testset "positive_stepsize_to_bound_trust_region tests" begin
 
     using TrustRegionReflective: positive_stepsize_to_bound_trust_region

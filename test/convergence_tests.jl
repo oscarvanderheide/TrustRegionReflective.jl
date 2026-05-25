@@ -42,7 +42,7 @@ using TimerOutputs
             elseif mode == "frgH"
                 g = 2.0 * residuals
                 H = LinearMap(x -> 2.0 * x, 2, 2)
-                H⁻¹_approx = LinearMap(x -> x, 2, 2)
+                H⁻¹_approx = nothing
                 return f, residuals, g, H, H⁻¹_approx
             end
         end
@@ -112,8 +112,7 @@ using TimerOutputs
 
                 H = LinearMap(H_op, 2, 2)
 
-                # Inverse Hessian approximation (identity matrix for simplicity)
-                H⁻¹_approx = LinearMap(x -> x, 2, 2)
+                H⁻¹_approx = nothing
 
                 return f, residuals, g, H, H⁻¹_approx
             end
@@ -152,7 +151,7 @@ using TimerOutputs
             elseif mode == "frgH"
                 g = 2.0 * residuals
                 H = LinearMap(x -> 2.0 * x, 2, 2)
-                H⁻¹_approx = LinearMap(x -> x, 2, 2)  # Inverse Hessian for trust region step
+                H⁻¹_approx = nothing
                 return f, residuals, g, H, H⁻¹_approx
             end
         end
@@ -186,7 +185,7 @@ using TimerOutputs
             elseif mode == "frgH"
                 g = 2.0f0 * residuals
                 H = LinearMap(x -> 2.0f0 * x, 2,2)
-                H⁻¹_approx = LinearMap(x -> x, 2, 2)  # Inverse Hessian for trust region step
+                H⁻¹_approx = nothing
                 return f, residuals, g, H, H⁻¹_approx
             end
         end
@@ -221,7 +220,7 @@ using TimerOutputs
                 elseif mode == "frgH"
                     g = 2.0 * residuals
                     H = LinearMap(x -> 2.0 * x, 2, 2)
-                    H⁻¹_approx = LinearMap(x -> x, 2, 2)  # Inverse Hessian for trust region step
+                    H⁻¹_approx = nothing
                     return f, residuals, g, H, H⁻¹_approx
                 end
             end

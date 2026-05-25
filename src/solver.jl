@@ -47,7 +47,6 @@ function trust_region_reflective(
 
         @info "ITERATION #$(iter)"
 
-        H⁻¹_approx = H⁻¹_approx
         if iter > 1
             @info "    Calling f,r,g,H, H⁻¹_approx = objective(x,'frgH')"
             @timeit to "Objective (frgH)" f, r, g, H, H⁻¹_approx = objective(x, "frgH")
@@ -64,8 +63,8 @@ function trust_region_reflective(
         g_norm = norm(v .* g, Inf)
         tol = options.tol_convergence
 
-        if (g_norm < tol) || (iter > 1 && abs(state.f[end-1] - f) < tol * max(1.0, abs(f)))
-            @info "Convergence achieved: scaled gradient norm $(g_norm) or function change below tolerance"
+        if g_norm < tol
+            @info "Convergence achieved: scaled gradient norm $(g_norm) below tolerance $(tol)"
             converged = true
             break
         end
@@ -80,13 +79,7 @@ function trust_region_reflective(
         # Always include the Coleman-Li derivative term (C .* x) in the scaled Hessian,
         # as it regularizes the quadratic model to account for the nonlinear scaling.
         H_scaled = x -> (D .* (H * (D .* x))) + (C .* x)
-        # Safe inverse: when D[i]=0 (variable frozen at bound), set D⁻¹[i]=0 so the
-        # preconditioner zeroes out that component instead of producing Inf*0=NaN.
-        D⁻¹ = map(d -> d == zero(d) ? zero(d) : inv(d), D)
-
-        # Preconditioner: defined once per outer iteration; D⁻¹ and H⁻¹_approx are
-        # constant across inner acceptance retries, so no need to recreate the closure.
-        P = y -> D⁻¹ .* (H⁻¹_approx * (D⁻¹ .* y))
+        P = build_steihaug_preconditioner(H⁻¹_approx, D)
 
         step_accepted = false
         perform_steihaug = true

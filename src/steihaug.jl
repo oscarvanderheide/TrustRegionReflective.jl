@@ -165,7 +165,8 @@ function steihaug_store_steps(H, g, Δ, P, maxit, tol, z0)
     sizehint!(steps, maxit)
     sizehint!(step_norms, maxit)
 
-    if norm(r) < tol
+    norm_r = norm(r)
+    if norm_r <= tol || norm_r <= eps(eltype(g))
         @info "        Nothing to gain, residual is already small enough from the start"
         push!(steps, z)
         push!(step_norms, zero(eltype(g)))

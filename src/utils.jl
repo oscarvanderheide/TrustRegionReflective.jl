@@ -204,6 +204,23 @@ function adjust_trust_radius(
 end
 
 """
+    build_steihaug_preconditioner(H⁻¹_approx, D)
+
+Build the preconditioner used by Steihaug CG in the scaled trust-region
+subproblem. `nothing` means no preconditioning. Otherwise, `H⁻¹_approx` is
+interpreted as an original-space inverse-Hessian approximation and transformed
+to scaled-space coordinates.
+"""
+function build_steihaug_preconditioner(::Nothing, D)
+    return identity
+end
+
+function build_steihaug_preconditioner(H⁻¹_approx, D)
+    D⁻¹ = map(d -> iszero(d) ? zero(d) : inv(d), D)
+    return y -> D⁻¹ .* (H⁻¹_approx * (D⁻¹ .* y))
+end
+
+"""
     function coleman_li_scaling_factors(x, g, LB, UB)
 
 First-Order optimality condition in the case of box constraints is:
