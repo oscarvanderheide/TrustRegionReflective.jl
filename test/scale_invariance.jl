@@ -16,3 +16,35 @@
         @test step > 0 && isfinite(step)
     end
 end
+
+@testset "Steihaug objective scaling" begin
+    using TrustRegionReflective: steihaug_store_steps
+    for T in (Float32, Float64), device in (identity, CuArray)
+        device === CuArray && !CUDA.functional() && continue
+        # Rescale both g and H: the minimizer and trust-region geometry stay fixed.
+        for scale in T[1, 1e-5, 1e-9]
+            diagonal = device(T[1, 3])
+            g = device(T[0.1, -0.2]) .* scale
+            H = x -> scale .* diagonal .* x
+            steps, _ = steihaug_store_steps(H, g, T(2), identity, 10, T(1e-5), zero(g))
+            @test Array(last(steps)) ≈ T[-0.1, 0.2/3] rtol=50eps(T)
+            @test all(isfinite, last(steps))
+        end
+        # A small positive eigenvalue still permits an interior Newton step.
+        g = device(T[1e-3])
+        steps, _ = steihaug_store_steps(x -> T(1e-9) .* x, g, T(1e8), identity,
+            5, T(1e-4), zero(g))
+        @test Array(last(steps)) ≈ T[-1e6] rtol=10eps(T)
+        # A vanishing preconditioner must not form an infinite boundary step times zero.
+        steps, _ = steihaug_store_steps(identity, g, one(T), zero, 5, T(1e-4), zero(g))
+        @test iszero(norm(last(steps)))
+        @test all(isfinite, last(steps))
+        # Actual zero and negative curvature still take finite boundary steps.
+        for curvature in T[0, -1]
+            steps, _ = steihaug_store_steps(x -> curvature .* x, g, one(T), identity,
+                5, T(1e-4), zero(g))
+            @test norm(last(steps)) ≈ one(T) rtol=10eps(T)
+            @test dot(g, last(steps)) < 0
+        end
+    end
+end

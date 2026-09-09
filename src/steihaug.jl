@@ -166,7 +166,7 @@ function steihaug_store_steps(H, g, Δ, P, maxit, tol, z0)
     sizehint!(step_norms, maxit)
 
     norm_r = norm(r)
-    if norm_r <= tol || norm_r <= eps(eltype(g))
+    if norm_r <= tol || iszero(norm_r)
         @info "        Nothing to gain, residual is already small enough from the start"
         push!(steps, z)
         push!(step_norms, zero(eltype(g)))
@@ -184,8 +184,27 @@ function steihaug_store_steps(H, g, Δ, P, maxit, tol, z0)
         #  realResidual = 0.5 * p' * B(p) + g' * p    # This thing
         #  should be monotonically decreasing (and it does)
 
-        # if dHd < ϵ
-        if dHd < ϵ
+        # A zero preconditioned direction cannot reach the boundary; return the current
+        # iterate instead of forming Inf * 0. Only reachable when the preconditioner maps
+        # the residual to exactly zero, which is a bug in the preconditioner: warn, because
+        # the solver reads the resulting zero step as convergence.
+        if iszero(norm(d))
+            @warn "        Steihaug-CG: preconditioned direction is exactly zero; returning a zero step. Check the preconditioner."
+            # z is already the last entry of `steps` on every iteration but the first.
+            if isempty(steps)
+                push!(steps, z)
+                push!(step_norms, norm(z))
+            end
+            break
+        end
+
+        # Only nonpositive curvature justifies a boundary step. An absolute threshold,
+        # even after dividing by ‖d‖², misclassifies small positive eigenvalues when the
+        # objective is rescaled. Comparing against ‖d‖‖Hd‖ -- the natural size of dHd --
+        # is invariant under both rescalings, and unlike `dHd <= 0` it also catches dHd
+        # underflowing to zero, which would otherwise send a full boundary step along a
+        # direction made of nothing but round-off.
+        if dHd <= ϵ * norm(d) * norm(Hd)
             @info "        Direction of negative curvature encountered: should not occur because of Gauss-Newton method?"
             τ = positive_stepsize_to_bound_trust_region(z, d, Δ)
             step = z + τ * d
@@ -210,7 +229,7 @@ function steihaug_store_steps(H, g, Δ, P, maxit, tol, z0)
         r_new = r + α * Hd
         norm_r_new = norm(r_new)
 
-        if norm_r_new < tol
+        if norm_r_new <= tol
             @info "        Steihaug-CG converged with CG-residual = $(norm_r_new) after iteration $(iter)"
             push!(steps, z_new)
             push!(step_norms, norm_z_new)
@@ -220,8 +239,10 @@ function steihaug_store_steps(H, g, Δ, P, maxit, tol, z0)
         Y_new = P(r_new)
         # Guard against division by zero: when Y'*r ≈ 0 the CG β blows up.
         # This can happen when the preconditioner maps the residual to near-zero.
+        # Scaled by ‖Y‖‖r‖ for the same reason as the curvature test above: the bare
+        # comparison measures how short the vectors are, not how close to orthogonal.
         Yr = Y' * r
-        if abs(Yr) < eps(eltype(g))
+        if abs(Yr) <= ϵ * norm(Y) * norm(r)
             @info "        Steihaug-CG: Y'*r ≈ 0, terminating to avoid NaN in β"
             push!(steps, z_new)
             push!(step_norms, norm_z_new)
