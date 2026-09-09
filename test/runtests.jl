@@ -103,6 +103,44 @@ end
     trust_radius = -10.0
     @test_throws ErrorException positive_stepsize_to_bound_trust_region(x, p, trust_radius)
 
+    # A short search direction must still produce a finite step, in Float32 as well as in
+    # Float64. Solving through `norm(p)^2` used to compare a squared norm against `eps(T)`,
+    # which in Float32 turned every direction shorter than ~3.4e-4 into an `Inf` step and
+    # `NaN`-poisoned the Steihaug iterate that consumed it. Short directions are exactly
+    # what the inner CG produces near convergence, so this only ever bit at the end of a
+    # solve.
+    for T in (Float32, Float64)
+        for p_norm in T[1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
+            x = T[0.1, 0.2, 0.0]
+            p = T[p_norm, 0.0, 0.0]
+            trust_radius = one(T)
+            τ = positive_stepsize_to_bound_trust_region(x, p, trust_radius)
+            @test isfinite(τ)
+            @test τ > 0
+            @test all(isfinite, x + τ * p)
+            # The whole point of τ: the step lands on the trust boundary.
+            @test norm(x + τ * p) ≈ trust_radius rtol = sqrt(eps(T))
+        end
+    end
+
+    # An exactly-zero direction never reaches the boundary.
+    for T in (Float32, Float64)
+        @test positive_stepsize_to_bound_trust_region(zeros(T, 3), zeros(T, 3), one(T)) ==
+              T(Inf)
+    end
+
+    # Starting on the boundary is the cancellation-prone case: `Δ² - ‖x‖²` loses all its
+    # significant digits there, so τ must come out at (or very near) zero rather than as
+    # the square root of a negative.
+    for T in (Float32, Float64)
+        x = T[1.0, 0.0, 0.0]
+        τ = positive_stepsize_to_bound_trust_region(x, T[1.0, 0.0, 0.0], one(T))
+        @test isfinite(τ) && τ >= 0 && τ < sqrt(eps(T))
+        # Pointing back inside from the boundary, the far intersection is a real crossing.
+        τ = positive_stepsize_to_bound_trust_region(x, T[-1.0, 0.0, 0.0], one(T))
+        @test norm(x + τ * T[-1.0, 0.0, 0.0]) ≈ one(T) rtol = sqrt(eps(T))
+    end
+
 end
 
 @testset "adjust_trust_radius tests" begin
@@ -1181,3 +1219,5 @@ end
 # Include our convergence tests
 include("convergence_tests.jl")
 include("type_stability_tests.jl")
+
+include("scale_invariance.jl")

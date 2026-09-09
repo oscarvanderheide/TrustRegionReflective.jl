@@ -130,23 +130,36 @@ function positive_stepsize_to_bound_trust_region(x::V, p::V, trust_radius::T) wh
         error("    positive_stepsize_to_bound_trust_region: Trust radius must be positive")
     end
 
-    # Coefficients for the quadratic equation
-    a = norm(p)^2
+    # Solve along the *normalized* direction rather than through the coefficients of the
+    # raw quadratic. Writing the equation in terms of `norm(p)^2` throws away the small-‖p‖
+    # regime in Float32: a direction of norm 1e-4 squares to 1e-8, below `eps(Float32)`, so
+    # a guard against a (near-)zero direction fires on a step of τ ≈ 8.8e3 that is perfectly
+    # representable. The `Inf` it returned then poisoned `z + τ * d` into `NaN`. Every
+    # quantity below stays at the scale of the geometry (‖x‖ and the radius) instead of its
+    # square, so no threshold on ‖p‖ is needed at all.
+    p_norm = norm(p)
 
-    # Guard: if p is (near-)zero, no step can reach the trust boundary
-    if a < eps(T)
+    # Only a direction that cannot be normalized at all fails to reach the boundary.
+    if !isfinite(p_norm) || p_norm <= floatmin(T)
         return convert(T, Inf)
     end
 
-    b = 2 * dot(x, p)
-    c = norm(x)^2 - trust_radius^2
+    # With `s = τ * ‖p‖` and `p̂ = p / ‖p‖`, solving ‖x + s p̂‖ = Δ gives
+    # `s = -⟨x, p̂⟩ + sqrt(⟨x, p̂⟩² + Δ² - ‖x‖²)`.
+    x_norm = norm(x)
+    xp = dot(x, p) / p_norm
 
-    # Guard: clamp discriminant to avoid sqrt of tiny negative from float error
-    disc = b^2 - 4 * a * c
+    # `Δ² - ‖x‖²` as a difference of squares cancels catastrophically exactly where this is
+    # called from — with the iterate sitting on the trust boundary, ‖x‖ ≈ Δ. The factored
+    # form keeps the leading digits.
+    gap = (trust_radius - x_norm) * (trust_radius + x_norm)
+    disc = xp^2 + gap
     disc = max(disc, zero(T))
 
-    # Solve the quadratic equation for τ using the quadratic formula
-    τ = (-b + sqrt(disc)) / (2 * a)
+    # For outward directions, rationalize the small positive root: subtracting xp
+    # from sqrt(disc) loses digits when x is already close to the boundary.
+    distance = xp > 0 ? gap / (sqrt(disc) + xp) : -xp + sqrt(disc)
+    τ = distance / p_norm
 
     if τ < 0
         error("    positive_stepsize_to_bound_trust_region: Negative stepsize encountered")
