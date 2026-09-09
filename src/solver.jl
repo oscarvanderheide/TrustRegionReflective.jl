@@ -113,6 +113,15 @@ function trust_region_reflective(
             @timeit to "Choose step" step, step_hat, step_value = choose_step(x, H_scaled, ĝ, s, ŝ, D, Δ, theta, LB, UB)
             @timeit to "x_new" x_new = clamp.(x + step, LB, UB)
 
+            # Once the proposed update rounds to the current parameters, reducing the
+            # radius cannot resolve it. Stop before evaluating the same expensive model
+            # repeatedly, without reporting an unaccepted step to the callback.
+            if all(x_new .== x)
+                @info "Stopping: the proposed update is below parameter precision"
+                converged = true
+                break
+            end
+
             # Compute new objective
             @info "    Calling f,r = objective(x_new,'fr')"
             @timeit to "Objective (fr)" f_new, r_new = objective(x_new, "fr")
@@ -169,6 +178,7 @@ function trust_region_reflective(
             end
         end # Step accepted
 
+        converged && break
         callback(iter, state)
 
         iter += 1

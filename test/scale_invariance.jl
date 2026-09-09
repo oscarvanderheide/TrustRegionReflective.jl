@@ -48,3 +48,27 @@ end
         end
     end
 end
+
+@testset "TRF stops at parameter precision" begin
+    for T in (Float32, Float64), device in (identity, CuArray)
+        device === CuArray && !CUDA.functional() && continue
+        # The exact minimum is x0 + 1, which is closer than one representable increment.
+        # Subtract x0 before 1 so the residual still exposes that nonzero gradient.
+        x0 = device(T[T === Float32 ? 1e8 : 1e16])
+        calls = Ref(0)
+        accepted = Ref(0)
+        objective = function (x, mode)
+            calls[] += 1
+            r = (x .- x0) .- one(T)
+            f = sum(abs2, r) / 2
+            mode == "fr" && return f, r
+            return f, r, r, Diagonal(device(ones(T, 1))), nothing
+        end
+        options = TRFOptions{T}(max_iter_trf=3)
+        result = trust_region_reflective(objective, x0, device(T[-Inf]), device(T[Inf]),
+            (iteration, state) -> (accepted[] += 1), TimerOutput(), options)
+        @test result == x0
+        @test calls[] == 1
+        @test accepted[] == 0
+    end
+end
